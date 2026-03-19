@@ -285,7 +285,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 ## 📧 Contact
 
 For questions or support:
-- Email: [sumitsah6511@gmail.com]
+- Email: sumitsah6511@gmail.com
 - GitHub Issues: [Create an issue](https://github.com/sumit6511/voxtube/issues)
 
 ---
