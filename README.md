@@ -246,8 +246,6 @@ Key research papers and resources:
 4. Grootendorst (2022) - BERTopic: Neural topic modeling
 5. Conneau et al. (2020) - XLM-RoBERTa: Unsupervised Cross-lingual Representation Learning
 
-See full references in the project proposal document.
-
 ---
 
 ## 🔒 Privacy & Legal
