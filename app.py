@@ -3,7 +3,7 @@ VoxTube - Main Streamlit Application
 Interactive dashboard for YouTube comment analytics
 """
 
-import streamlit as ts
+import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
