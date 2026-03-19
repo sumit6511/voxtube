@@ -1,0 +1,50 @@
+# VoxTube - Requirements
+# Python 3.10-3.12 recommended (3.14 is not supported by several pinned packages)
+
+# Core Dependencies
+streamlit==1.40.0
+pandas==2.1.4
+numpy==1.26.3
+python-dotenv==1.0.0
+
+# YouTube API
+google-api-python-client==2.111.0
+
+# NLP & Transformers
+transformers==4.36.2
+torch==2.1.2
+sentence-transformers==2.2.2
+bertopic==0.16.0
+spacy==3.7.2
+nltk==3.8.1
+emoji==2.10.0
+
+# Vector Database & RAG
+faiss-cpu==1.7.4
+langchain==0.1.0
+langchain-community==0.0.10
+
+# LLM for RAG
+google-generativeai==0.3.2
+
+# Visualization
+plotly==5.18.0
+matplotlib==3.8.2
+wordcloud==1.9.3
+seaborn==0.13.0
+
+# PDF Report Generation
+reportlab==4.0.8
+fpdf2==2.7.7
+
+# Utilities
+tqdm==4.66.1
+requests==2.31.0
+scikit-learn==1.3.2
+umap-learn==0.5.5
+hdbscan==0.8.33
+
+# Development
+pytest==7.4.4
+black==23.12.1
+flake8==7.0.0
