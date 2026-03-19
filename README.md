@@ -35,19 +35,19 @@ VoxTube is an intelligent, web-based analytics framework that transforms unstruc
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/voxtube.git
+   git clone https://github.com/sumit6511/voxtube.git
    cd voxtube
    ```
 
 2. **Create virtual environment**
    ```bash
    # On Windows
-   py -3.11 -m venv venv
-   venv\Scripts\activate
+   py -3.11 -m venv .venv
+   .venv\Scripts\activate
    
    # On macOS/Linux
-   python3.11 -m venv venv
-   source venv/bin/activate
+   python3.11 -m venv .venv
+   source .venv/bin/activate
    ```
 
 3. **Install dependencies**
@@ -62,7 +62,6 @@ VoxTube is an intelligent, web-based analytics framework that transforms unstruc
 
 5. **Set up environment variables**
    ```bash
-   cp .env.example .env
    # Edit .env and add your API keys
    ```
 
@@ -107,7 +106,7 @@ VoxTube/
 ├── app.py                      # Main Streamlit application
 ├── config.py                   # Configuration settings
 ├── requirements.txt            # Python dependencies
-├── .env.example               # Environment variables template
+├── .env                        # Environment variables template
 ├── src/
 │   ├── youtube_extractor.py   # YouTube Data API integration
 │   ├── preprocessor.py        # Text cleaning & normalization
@@ -289,7 +288,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 For questions or support:
 - Email: [your-email@example.com]
-- GitHub Issues: [Create an issue](https://github.com/yourusername/voxtube/issues)
+- GitHub Issues: [Create an issue](https://github.com/sumit6511/voxtube/issues)
 
 ---
 
