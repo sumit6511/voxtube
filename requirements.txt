@@ -48,3 +48,27 @@ hdbscan==0.8.33
 pytest==7.4.4
 black==23.12.1
 flake8==7.0.0
+
+
+
+
+
+
+
+
+
+# Installation Strategy (VERY IMPORTANT)
+
+# Don’t install all at once ❌
+# Install in stages:
+
+# -- Step 1
+# pip install numpy pandas scikit-learn matplotlib seaborn
+# -- Step 2
+# pip install torch transformers sentence-transformers
+# -- Step 3
+# pip install faiss-cpu umap-learn hdbscan bertopic
+# -- Step 4
+# pip install streamlit langchain langchain-community google-generativeai
+# -- Step 5
+# pip install python-dotenv google-api-python-client nltk emoji plotly wordcloud reportlab fpdf2 tqdm requests pytest black flake8
