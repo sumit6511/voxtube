@@ -11,6 +11,32 @@ import io
 
 class PDFReport(FPDF):
     """Custom PDF class for VoxTube reports"""
+
+    @staticmethod
+    def _sanitize_text(value) -> str:
+        if value is None:
+            return ""
+        return str(value).encode("latin-1", errors="replace").decode("latin-1")
+
+    def cell(self, *args, **kwargs):
+        args = list(args)
+        if len(args) >= 3:
+            args[2] = self._sanitize_text(args[2])
+        if "txt" in kwargs:
+            kwargs["txt"] = self._sanitize_text(kwargs["txt"])
+        if "text" in kwargs:
+            kwargs["text"] = self._sanitize_text(kwargs["text"])
+        return super().cell(*args, **kwargs)
+
+    def multi_cell(self, *args, **kwargs):
+        args = list(args)
+        if len(args) >= 3:
+            args[2] = self._sanitize_text(args[2])
+        if "txt" in kwargs:
+            kwargs["txt"] = self._sanitize_text(kwargs["txt"])
+        if "text" in kwargs:
+            kwargs["text"] = self._sanitize_text(kwargs["text"])
+        return super().multi_cell(*args, **kwargs)
     
     def header(self):
         """Add header to each page"""
@@ -235,7 +261,10 @@ class ReportGenerator:
         pdf.cell(0, 10, '© 2025 VoxTube Project', 0, 1, 'C')
         
         # Return PDF as bytes
-        return pdf.output(dest='S').encode('latin-1')
+        pdf_output = pdf.output(dest='S')
+        if isinstance(pdf_output, (bytes, bytearray)):
+            return bytes(pdf_output)
+        return pdf_output.encode('latin-1')
     
     def save_report(self, pdf_bytes: bytes, filename: str):
         """Save PDF report to file"""

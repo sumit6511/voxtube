@@ -71,4 +71,6 @@ flake8==7.0.0
 # -- Step 4
 # pip install streamlit langchain langchain-community google-generativeai
 # -- Step 5
-# pip install python-dotenv google-api-python-client nltk emoji plotly wordcloud reportlab fpdf2 tqdm requests pytest black flake8
+# pip install python-dotenv google-api-python-client nltk plotly reportlab tqdm requests pytest black flake8
+# -- Step 6
+# pip install emoji spacy wordcloud fpdf2 tiktoken

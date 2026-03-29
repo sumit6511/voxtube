@@ -131,7 +131,7 @@ with tab1:
     with col2:
         st.write("")
         st.write("")
-        analyze_button = st.button("🚀 Analyze Comments", type="primary", use_container_width=True)
+        analyze_button = st.button("🚀 Analyze Comments", type="primary", width='stretch')
     
     if analyze_button and video_url:
         if not youtube_api_key:
@@ -179,8 +179,15 @@ with tab1:
                     # Initialize chatbot if enabled
                     if enable_chat and gemini_api_key:
                         st.info("Initializing AI chat...")
-                        st.session_state.chatbot = RAGChatbot(api_key=gemini_api_key)
-                        st.session_state.chatbot.ingest_comments(comments)
+                        try:
+                            st.session_state.chatbot = RAGChatbot(api_key=gemini_api_key)
+                            st.session_state.chatbot.ingest_comments(comments)
+                        except Exception as chat_init_error:
+                            st.session_state.chatbot = None
+                            st.warning(
+                                "AI Chat initialization failed. Please verify or renew your Gemini API key in the sidebar. "
+                                f"Details: {chat_init_error}"
+                            )
                     
                     st.success("Analysis complete! Check the Analytics tab.")
                     st.rerun()
@@ -277,7 +284,7 @@ with tab2:
                     'neutral': neutral,
                     'negative': negative
                 }),
-                use_container_width=True
+                width='stretch'
             )
         
         with col2:
@@ -287,7 +294,7 @@ with tab2:
                     'neutral': neutral,
                     'negative': negative
                 }),
-                use_container_width=True
+                width='stretch'
             )
         
         # Toxicity Chart
@@ -303,7 +310,7 @@ with tab2:
                     'offensive_count': offensive,
                     'normal_count': normal
                 }),
-                use_container_width=True
+                width='stretch'
             )
         
         # Topic Analysis
@@ -439,6 +446,9 @@ with tab3:
                     
                     # Get response
                     response = st.session_state.chatbot.chat(query)
+
+                    if response.get('error_type') == 'api_key_invalid':
+                        st.error("Gemini API key is invalid/expired. Update it in the sidebar and re-analyze to reinitialize chat.")
                     
                     # Add assistant message to history
                     st.session_state.chat_history.append({'role': 'assistant', 'content': response['answer']})

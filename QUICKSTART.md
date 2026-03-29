@@ -50,6 +50,7 @@ cp .env.example .env
 # Edit .env and add your keys
 YOUTUBE_API_KEY=your_youtube_api_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 ### Step 4: Run the Application

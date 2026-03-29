@@ -9,7 +9,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
 import google.generativeai as genai
-from config import EMBEDDING_MODEL, GEMINI_API_KEY, TOP_K_RETRIEVAL
+from config import EMBEDDING_MODEL, GEMINI_API_KEY, TOP_K_RETRIEVAL, GEMINI_MODEL
 
 
 class CommentVectorStore:
@@ -95,20 +95,102 @@ class RAGChatbot:
     RAG-based chatbot for Q&A over YouTube comments
     """
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, model_name: Optional[str] = None):
         self.api_key = api_key or GEMINI_API_KEY
         if not self.api_key:
             raise ValueError("Gemini API key is required")
+
+        self.model_name = model_name or GEMINI_MODEL
         
         # Configure Gemini
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = self._initialize_model(self.model_name)
         
         # Vector store
         self.vector_store = CommentVectorStore()
         
         # Chat history
         self.history = []
+
+    @staticmethod
+    def _normalize_model_name(name: str) -> str:
+        if not name:
+            return ""
+        return name.replace("models/", "").strip()
+
+    def _initialize_model(self, preferred_model: str):
+        """
+        Initialize a Gemini model that supports generateContent.
+        Falls back automatically if the preferred model is unavailable.
+        """
+        candidate_names = [
+            self._normalize_model_name(preferred_model),
+            "gemini-2.0-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-pro"
+        ]
+
+        # Remove duplicates while preserving order
+        seen = set()
+        candidate_names = [m for m in candidate_names if m and not (m in seen or seen.add(m))]
+
+        try:
+            available = list(genai.list_models())
+            generate_supported = []
+            for model in available:
+                methods = [m.lower() for m in getattr(model, "supported_generation_methods", [])]
+                if "generatecontent" in methods:
+                    generate_supported.append(self._normalize_model_name(getattr(model, "name", "")))
+
+            # Try preferred and known candidates first, if actually supported
+            for candidate in candidate_names:
+                if candidate in generate_supported:
+                    self.model_name = candidate
+                    print(f"Using Gemini model: {self.model_name}")
+                    return genai.GenerativeModel(candidate)
+
+            # Fallback to first available supported model
+            if generate_supported:
+                self.model_name = generate_supported[0]
+                print(f"Using Gemini model fallback: {self.model_name}")
+                return genai.GenerativeModel(self.model_name)
+        except Exception as e:
+            print(f"Warning: Could not list Gemini models ({e}). Trying configured/default candidates.")
+
+        # Final fallback: try candidates directly
+        for candidate in candidate_names:
+            try:
+                model = genai.GenerativeModel(candidate)
+                self.model_name = candidate
+                print(f"Using Gemini model by direct init: {self.model_name}")
+                return model
+            except Exception:
+                continue
+
+        raise RuntimeError(
+            "No compatible Gemini model found for generateContent. "
+            "Set a supported model via GEMINI_MODEL or verify your API access."
+        )
+
+    @staticmethod
+    def _format_generation_error(error: Exception):
+        raw_message = str(error)
+        message_lower = raw_message.lower()
+
+        if any(token in message_lower for token in ["api_key_invalid", "api key expired", "api key invalid", "expired"]):
+            return (
+                "Your Gemini API key is invalid or expired. Please update it in the sidebar (API Keys) and try again.",
+                "api_key_invalid"
+            )
+
+        if "permission" in message_lower or "forbidden" in message_lower:
+            return (
+                "Gemini API access is not permitted for this key/project. Please verify API access and billing in Google AI Studio.",
+                "permission_denied"
+            )
+
+        return (f"Error generating response: {raw_message}", "generation_error")
     
     def ingest_comments(self, comments: List[Dict]):
         """Ingest comments into the vector store"""
@@ -185,11 +267,12 @@ Your Answer:"""
         prompt = self.create_prompt(query, retrieved)
         
         # Generate response
+        error_type = None
         try:
             response = self.model.generate_content(prompt)
             answer = response.text
         except Exception as e:
-            answer = f"Error generating response: {str(e)}"
+            answer, error_type = self._format_generation_error(e)
         
         # Format sources
         sources = []
@@ -208,7 +291,8 @@ Your Answer:"""
         return {
             'answer': answer,
             'retrieved_comments': retrieved,
-            'sources': sources
+            'sources': sources,
+            'error_type': error_type
         }
     
     def clear_history(self):

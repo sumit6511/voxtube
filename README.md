@@ -131,7 +131,7 @@ VoxTube/
 | Toxicity Detection | `Hate-speech-CNERG/bert-base-uncased-hatexplain` | 3-class hate speech, offensive, and normal classification |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Text embeddings for RAG & topic modeling |
 | Topic Modeling | BERTopic + HDBSCAN | Extract discussion themes |
-| LLM for RAG | Gemini 1.5 Flash | Generate chat responses |
+| LLM for RAG | Gemini (configurable, default `gemini-2.0-flash`) | Generate chat responses |
 
 ---
 

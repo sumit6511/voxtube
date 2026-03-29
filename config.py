@@ -11,6 +11,7 @@ load_dotenv()
 # API Keys
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 # Model Configuration
 SENTIMENT_MODEL = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
