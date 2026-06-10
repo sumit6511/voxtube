@@ -1,0 +1,33 @@
+# Web framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+pydantic
+python-dotenv
+
+# YouTube API
+google-api-python-client
+
+# Text preprocessing
+ftfy
+emoji
+
+# ML models
+# Install CPU-only torch first:  pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch
+transformers
+sentencepiece
+vaderSentiment
+
+# Topic modeling
+bertopic
+sentence-transformers
+
+# Vector search
+faiss-cpu
+numpy
+
+# Gemini LLM
+google-genai

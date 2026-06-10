@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    @apply bg-base text-gray-100 font-body antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245,158,11,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 90% 80%, rgba(245,158,11,0.03) 0%, transparent 50%);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-base; }
+  ::-webkit-scrollbar-thumb { @apply bg-base-border rounded-full; }
+}
+
+@layer components {
+  .card {
+    @apply bg-base-surface border border-base-border rounded-xl p-5;
+  }
+  .input-field {
+    @apply w-full bg-base border border-base-border rounded-lg px-4 py-3
+           text-gray-100 font-mono text-sm placeholder-gray-600
+           focus:outline-none focus:border-amber focus:ring-1 focus:ring-amber/30
+           transition-all duration-200;
+  }
+  .btn-primary {
+    @apply bg-amber text-gray-950 font-display font-bold px-6 py-3 rounded-lg
+           hover:bg-amber-glow active:scale-95 transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .label {
+    @apply text-xs font-mono text-gray-500 uppercase tracking-widest;
+  }
+  .pill-pos { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pos/10 text-pos text-xs font-mono; }
+  .pill-neg { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neg/10 text-neg text-xs font-mono; }
+  .pill-neu { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neu/10 text-neu text-xs font-mono; }
+}
