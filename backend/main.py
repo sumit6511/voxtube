@@ -67,10 +67,21 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
 
         result = fetch_comments(youtube_url, max_comments)
 
-        # Bulk-insert comments into DB
+        # Bulk-insert comments with timestamps into DB
+        from datetime import datetime as dt
+
+        def _parse_ts(s):
+            if not s: return None
+            try: return dt.fromisoformat(s.replace('Z', '+00:00'))
+            except Exception: return None
+
         comment_rows = [
-            Comment(job_id=job_id, original_text=text)
-            for text in result["comments"]
+            Comment(
+                job_id=job_id,
+                original_text=item["text"],
+                published_at=_parse_ts(item.get("published_at")),
+            )
+            for item in result["comments"]
         ]
         db.bulk_save_objects(comment_rows)
         _set_job(
@@ -268,6 +279,7 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
             toxicity_json=c.toxicity_json,
             topic_id=c.topic_id,
             lang=c.lang,
+            published_at=c.published_at,
         )
         for c in comments
     ]

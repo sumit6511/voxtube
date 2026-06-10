@@ -55,6 +55,9 @@ class Comment(Base):
     # Language detection
     lang = Column(String, nullable=True)              # 'nepali' | 'english' | 'neplish'
 
+    # Timestamp
+    published_at = Column(DateTime, nullable=True)    # when the comment was posted
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     job = relationship("Job", back_populates="comments")

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
 
 
 # ── Requests ──────────────────────────────────────────────────────────────────
@@ -35,7 +36,8 @@ class CommentOut(BaseModel):
     is_toxic:        int
     toxicity_json:   Optional[str]
     topic_id:        Optional[int]
-    lang:            Optional[str] = None  # 'nepali' | 'english' | 'neplish'
+    lang:            Optional[str]      = None  # 'nepali' | 'english' | 'neplish'
+    published_at:    Optional[datetime] = None  # when the comment was posted
 
     model_config = {"from_attributes": True}
 

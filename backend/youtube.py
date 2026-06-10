@@ -61,7 +61,7 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
         {
             "video_id":    str,
             "video_title": str,
-            "comments":    [str, ...]   # plain-text comment strings
+            "comments":    [{"text": str, "published_at": str | None}, ...]
         }
 
     Raises:
@@ -107,9 +107,11 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
             raise
 
         for item in response.get("items", []):
-            text = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-            if text.strip():            # skip empty/whitespace comments
-                comments.append(text)
+            snippet = item["snippet"]["topLevelComment"]["snippet"]
+            text    = snippet["textDisplay"]
+            pub     = snippet.get("publishedAt")      # ISO 8601 string or None
+            if text.strip():
+                comments.append({"text": text, "published_at": pub})
 
         next_page_token = response.get("nextPageToken")
         if not next_page_token:

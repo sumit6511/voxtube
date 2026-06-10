@@ -4,13 +4,14 @@ import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare } from 'lucide
 import { api } from '../api'
 import { useStore } from '../store'
 import type { ResultsResponse } from '../api'
-import SentimentChart from '../components/SentimentChart'
-import TopicsChart    from '../components/TopicsChart'
-import CommentsList   from '../components/CommentsList'
-import ToxicityPanel  from '../components/ToxicityPanel'
-import ChatPanel      from '../components/ChatPanel'
-import WordCloud      from '../components/WordCloud'
-import LanguageChart  from '../components/LanguageChart'
+import SentimentChart    from '../components/SentimentChart'
+import TopicsChart       from '../components/TopicsChart'
+import CommentsList      from '../components/CommentsList'
+import ToxicityPanel     from '../components/ToxicityPanel'
+import ChatPanel         from '../components/ChatPanel'
+import WordCloud         from '../components/WordCloud'
+import LanguageChart     from '../components/LanguageChart'
+import SentimentTimeline from '../components/SentimentTimeline'
 
 type Tab = 'overview' | 'comments' | 'toxicity' | 'chat'
 
@@ -108,17 +109,19 @@ export default function Dashboard() {
       {/* ── Tab content ────────────────────────────────────────────── */}
       {tab === 'overview' && (
         <div className="space-y-4">
-          {/* Row 1: Sentiment + Language side by side */}
+
+          {/* Row 1: Sentiment + Language */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="card">
-              <SentimentChart data={ss} />
-            </div>
-            <div className="card">
-              <LanguageChart comments={comments} />
-            </div>
+            <div className="card"><SentimentChart data={ss} /></div>
+            <div className="card"><LanguageChart  comments={comments} /></div>
           </div>
 
-          {/* Row 2: Topics full width */}
+          {/* Row 2: Sentiment timeline */}
+          <div className="card">
+            <SentimentTimeline comments={comments} />
+          </div>
+
+          {/* Row 3: Topics */}
           <div className="card">
             {topics.length > 0
               ? <TopicsChart topics={topics} />
@@ -130,10 +133,11 @@ export default function Dashboard() {
             }
           </div>
 
-          {/* Row 3: Word cloud full width */}
+          {/* Row 4: Word cloud */}
           <div className="card">
             <WordCloud comments={comments} />
           </div>
+
         </div>
       )}
 

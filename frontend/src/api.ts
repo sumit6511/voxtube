@@ -29,7 +29,7 @@ export interface Comment {
   sentiment_label?: string; sentiment_score?: number
   vader_label?: string; vader_compound?: number
   is_toxic: number; toxicity_json?: string
-  topic_id?: number; lang?: string
+  topic_id?: number; lang?: string; published_at?: string
 }
 export interface ResultsResponse {
   job_id: string; video_title?: string; total_comments: number

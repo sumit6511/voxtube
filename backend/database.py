@@ -23,6 +23,7 @@ def run_migrations(engine):
     from sqlalchemy import text
     migrations = [
         "ALTER TABLE comments ADD COLUMN lang VARCHAR",
+        "ALTER TABLE comments ADD COLUMN published_at DATETIME",
     ]
     with engine.connect() as conn:
         for stmt in migrations:
