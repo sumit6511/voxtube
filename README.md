@@ -122,4 +122,4 @@ voxtube/
 4. Once processing is complete, you can view the sentiment summary, toxicity reports, identified topics, and interact with the AI Chat to ask specific questions about viewer feedback.
 
 ## License
-[Add your license here]
+This project is licensed under the ISC License.
