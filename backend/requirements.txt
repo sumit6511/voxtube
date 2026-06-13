@@ -29,5 +29,8 @@ sentence-transformers
 faiss-cpu
 numpy
 
-# Gemini LLM
+# Evaluation metrics
+scikit-learn
+
+# Gemini LLM (optional — Ollama is used by default)
 google-genai

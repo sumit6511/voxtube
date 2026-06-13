@@ -11,6 +11,8 @@ from .schemas import (
     JobStatusResponse, ResultsResponse,
     CommentOut, TopicOut, SentimentSummary,
     ChatRequest, ChatResponse, SourceComment,
+    EvaluationResponse, MetricsResult,
+    JobSummary, JobListResponse,
 )
 
 # Create all tables and run lightweight column migrations on startup
@@ -293,6 +295,28 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
         comments=comments_out,
     )
 
+# ── Job history endpoint ──────────────────────────────────────────────────────
+
+@app.get("/jobs", response_model=JobListResponse)
+def list_jobs(db: Session = Depends(get_db)):
+    """Return all analysis jobs sorted by most recent first."""
+    jobs = db.query(Job).order_by(Job.created_at.desc()).all()
+    return JobListResponse(
+        jobs=[
+            JobSummary(
+                id=j.id,
+                youtube_url=j.youtube_url,
+                video_title=j.video_title,
+                status=j.status,
+                progress=j.progress,
+                comment_count=j.comment_count or 0,
+                created_at=j.created_at,
+            )
+            for j in jobs
+        ],
+        total=len(jobs),
+    )
+
 # ── Chat / RAG endpoint ───────────────────────────────────────────────────────
 
 @app.post("/chat/{job_id}", response_model=ChatResponse)
@@ -321,4 +345,32 @@ def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     return ChatResponse(
         answer=result["answer"],
         sources=[SourceComment(**s) for s in result["sources"]],
+    )
+
+# ── Evaluation endpoint ───────────────────────────────────────────────────────
+
+@app.get("/evaluate", response_model=EvaluationResponse)
+def evaluate():
+    """
+    Run XLM-RoBERTa and VADER on the labeled Neplish dataset and
+    return accuracy / precision / recall / F1 + confusion matrices.
+    First call loads the models and may take 30-60 seconds.
+    """
+    from .pipeline.evaluate import run_evaluation
+
+    try:
+        result = run_evaluation()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    xlm = None
+    if result["xlm_roberta"]:
+        xlm = MetricsResult(**result["xlm_roberta"])
+
+    return EvaluationResponse(
+        total_samples      = result["total_samples"],
+        label_distribution = result["label_distribution"],
+        xlm_roberta        = xlm,
+        vader              = MetricsResult(**result["vader"]),
+        note               = result["note"],
     )

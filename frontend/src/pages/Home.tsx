@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Clapperboard, ArrowRight, Loader2 } from 'lucide-react'
 import { api } from '../api'
 import { useStore } from '../store'
@@ -126,11 +126,38 @@ export default function Home() {
         className="animate-fade-up mt-8 flex flex-wrap justify-center gap-2"
         style={{ animationDelay: '160ms' }}
       >
-        {['XLM-RoBERTa', 'VADER Baseline', 'BERTopic', 'ToxicBERT', 'RAG · Llama 3.2'].map(tag => (
+        {['XLM-RoBERTa', 'VADER Baseline', 'BERTopic', 'ToxicBERT', 'RAG · Ollama'].map(tag => (
           <span key={tag} className="text-xs font-mono text-gray-600 border border-base-border rounded-full px-3 py-1">
             {tag}
           </span>
         ))}
+      </div>
+
+      {/* Secondary links */}
+      <div
+        className="animate-fade-up mt-4 flex items-center gap-3"
+        style={{ animationDelay: '220ms' }}
+      >
+        <Link
+          to="/history"
+          className="flex items-center gap-1.5 text-xs font-mono text-gray-500
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-4 py-2 rounded-full transition-all duration-200"
+        >
+          <span className="text-amber">◷</span>
+          History
+          <ArrowRight size={12} />
+        </Link>
+        <Link
+          to="/evaluate"
+          className="flex items-center gap-1.5 text-xs font-mono text-gray-500
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-4 py-2 rounded-full transition-all duration-200"
+        >
+          <span className="text-amber">⬡</span>
+          Model Evaluation
+          <ArrowRight size={12} />
+        </Link>
       </div>
     </div>
   )

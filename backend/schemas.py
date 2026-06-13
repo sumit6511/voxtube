@@ -82,3 +82,40 @@ class SourceComment(BaseModel):
 class ChatResponse(BaseModel):
     answer:  str
     sources: List[SourceComment]
+
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+
+class MetricsResult(BaseModel):
+    accuracy:         float
+    precision:        float
+    recall:           float
+    f1:               float
+    confusion_matrix: List[List[int]]   # 3×3  [positive, neutral, negative]
+
+
+class EvaluationResponse(BaseModel):
+    total_samples:      int
+    label_distribution: dict
+    xlm_roberta:        Optional[MetricsResult] = None
+    vader:              MetricsResult
+    note:               Optional[str] = None
+
+
+# ── Job history ───────────────────────────────────────────────────────────────
+
+class JobSummary(BaseModel):
+    id:            str
+    youtube_url:   str
+    video_title:   Optional[str] = None
+    status:        str
+    progress:      int
+    comment_count: int
+    created_at:    Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class JobListResponse(BaseModel):
+    jobs:  List[JobSummary]
+    total: int

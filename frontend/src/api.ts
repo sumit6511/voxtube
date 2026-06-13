@@ -37,8 +37,33 @@ export interface ResultsResponse {
   topics: Topic[]; comments: Comment[]
 }
 export interface ChatResponse {
-  answer: string
+  answer:  string
   sources: { id: string; text: string; score: number }[]
+}
+export interface MetricsResult {
+  accuracy:         number
+  precision:        number
+  recall:           number
+  f1:               number
+  confusion_matrix: number[][]
+}
+
+export interface EvaluationResponse {
+  total_samples:      number
+  label_distribution: Record<string, number>
+  xlm_roberta:        MetricsResult | null
+  vader:              MetricsResult
+  note?:              string | null
+}
+
+export interface JobSummary {
+  id:            string
+  youtube_url:   string
+  video_title?:  string | null
+  status:        string
+  progress:      number
+  comment_count: number
+  created_at?:   string | null
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────
@@ -61,4 +86,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+
+  evaluate: () =>
+    request<EvaluationResponse>('/evaluate'),
+
+  jobs: () =>
+    request<{ jobs: JobSummary[]; total: number }>('/jobs'),
 }
