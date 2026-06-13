@@ -58,6 +58,8 @@ class Comment(Base):
     # Timestamp
     published_at = Column(DateTime, nullable=True)    # when the comment was posted
 
+    parent_id = Column(String, nullable=True)   # None = top-level, str = reply
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     job = relationship("Job", back_populates="comments")

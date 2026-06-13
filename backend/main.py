@@ -82,6 +82,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
                 job_id=job_id,
                 original_text=item["text"],
                 published_at=_parse_ts(item.get("published_at")),
+                parent_id=item.get("parent_id"),
             )
             for item in result["comments"]
         ]
@@ -282,6 +283,7 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
             topic_id=c.topic_id,
             lang=c.lang,
             published_at=c.published_at,
+            parent_id=c.parent_id
         )
         for c in comments
     ]

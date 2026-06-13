@@ -14,8 +14,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export interface AnalyzeResponse  { job_id: string }
-export interface StatusResponse   {
+export interface AnalyzeResponse { job_id: string }
+export interface StatusResponse {
   job_id: string; status: string; progress: number
   comment_count: number; video_title?: string; error_message?: string
 }
@@ -30,6 +30,7 @@ export interface Comment {
   vader_label?: string; vader_compound?: number
   is_toxic: number; toxicity_json?: string
   topic_id?: number; lang?: string; published_at?: string
+  parent_id?: string | null
 }
 export interface ResultsResponse {
   job_id: string; video_title?: string; total_comments: number
@@ -37,33 +38,33 @@ export interface ResultsResponse {
   topics: Topic[]; comments: Comment[]
 }
 export interface ChatResponse {
-  answer:  string
+  answer: string
   sources: { id: string; text: string; score: number }[]
 }
 export interface MetricsResult {
-  accuracy:         number
-  precision:        number
-  recall:           number
-  f1:               number
+  accuracy: number
+  precision: number
+  recall: number
+  f1: number
   confusion_matrix: number[][]
 }
 
 export interface EvaluationResponse {
-  total_samples:      number
+  total_samples: number
   label_distribution: Record<string, number>
-  xlm_roberta:        MetricsResult | null
-  vader:              MetricsResult
-  note?:              string | null
+  xlm_roberta: MetricsResult | null
+  vader: MetricsResult
+  note?: string | null
 }
 
 export interface JobSummary {
-  id:            string
-  youtube_url:   string
-  video_title?:  string | null
-  status:        string
-  progress:      number
+  id: string
+  youtube_url: string
+  video_title?: string | null
+  status: string
+  progress: number
   comment_count: number
-  created_at?:   string | null
+  created_at?: string | null
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────

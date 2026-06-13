@@ -24,6 +24,7 @@ def run_migrations(engine):
     migrations = [
         "ALTER TABLE comments ADD COLUMN lang VARCHAR",
         "ALTER TABLE comments ADD COLUMN published_at DATETIME",
+        "ALTER TABLE comments ADD COLUMN parent_id VARCHAR",
     ]
     with engine.connect() as conn:
         for stmt in migrations:

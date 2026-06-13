@@ -38,7 +38,7 @@ class CommentOut(BaseModel):
     topic_id:        Optional[int]
     lang:            Optional[str]      = None  # 'nepali' | 'english' | 'neplish'
     published_at:    Optional[datetime] = None  # when the comment was posted
-
+    parent_id:       Optional[str] = None       # parent comment id for replies
     model_config = {"from_attributes": True}
 
 

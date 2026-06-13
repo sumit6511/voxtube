@@ -61,7 +61,7 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
         {
             "video_id":    str,
             "video_title": str,
-            "comments":    [{"text": str, "published_at": str | None}, ...]
+            "comments":    [{"text": str, "published_at": str | None, "parent_id": str | None}, ...]
         }
 
     Raises:
@@ -83,7 +83,7 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
 
         try:
             response = client.commentThreads().list(
-                part="snippet",
+                part="snippet,replies",
                 videoId=video_id,
                 maxResults=batch,
                 pageToken=next_page_token,
@@ -107,11 +107,26 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
             raise
 
         for item in response.get("items", []):
-            snippet = item["snippet"]["topLevelComment"]["snippet"]
-            text    = snippet["textDisplay"]
-            pub     = snippet.get("publishedAt")      # ISO 8601 string or None
-            if text.strip():
-                comments.append({"text": text, "published_at": pub})
+            top_snippet = item["snippet"]["topLevelComment"]["snippet"]
+            top_text    = top_snippet["textDisplay"]
+            top_pub     = top_snippet.get("publishedAt")
+            top_id      = item["snippet"]["topLevelComment"]["id"]
+
+            if top_text.strip():
+                comments.append({
+                    "text": top_text, "published_at": top_pub,
+                    "comment_id": top_id, "parent_id": None,
+                })
+
+            for reply in item.get("replies", {}).get("comments", []):
+                r_text = reply["snippet"]["textDisplay"]
+                if r_text.strip():
+                    comments.append({
+                        "text": r_text,
+                        "published_at": reply["snippet"].get("publishedAt"),
+                        "comment_id": reply["id"],
+                        "parent_id": top_id,
+                })
 
         next_page_token = response.get("nextPageToken")
         if not next_page_token:

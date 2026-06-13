@@ -18,15 +18,20 @@ export default function CommentsList({ comments, topics }: Props) {
   const [page,        setPage]        = useState(0)
   const [sentFilter,  setSentFilter]  = useState('all')
   const [toxicOnly,   setToxicOnly]   = useState(false)
+  const [repliesOnly, setRepliesOnly] = useState(false)
   const [search,      setSearch]      = useState('')
 
   const topicLabel = Object.fromEntries(
     topics.map(t => [t.topic_id, t.label.split(' | ')[0]])
   )
 
+  const topLevelCount = comments.filter(c => !c.parent_id).length
+  const replyCount    = comments.filter(c => !!c.parent_id).length
+
   const filtered = comments.filter(c => {
     if (sentFilter !== 'all' && c.sentiment_label !== sentFilter) return false
-    if (toxicOnly && !c.is_toxic) return false
+    if (toxicOnly   && !c.is_toxic)  return false
+    if (repliesOnly && !c.parent_id) return false
     if (search && !c.original_text.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -39,7 +44,7 @@ export default function CommentsList({ comments, topics }: Props) {
   return (
     <div className="space-y-4">
 
-      {/* ── Filters ─────────────────────────────────────────────────── */}
+      {/* ── Filters ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-2 items-center">
 
         <input
@@ -75,12 +80,32 @@ export default function CommentsList({ comments, topics }: Props) {
         >
           🚨 toxic only
         </button>
+
+        {/* Replies toggle — only shown if there are replies */}
+        {replyCount > 0 && (
+          <button
+            onClick={() => { setRepliesOnly(v => !v); resetPage() }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition-all
+              ${repliesOnly
+                ? 'border-amber/60 text-amber bg-amber/8'
+                : 'border-base-border text-gray-500 hover:text-gray-300'}`}
+          >
+            ↩ replies only
+          </button>
+        )}
       </div>
 
       {/* Count */}
-      <p className="label">{filtered.length} comments</p>
+      <div className="flex items-center gap-3">
+        <p className="label">{filtered.length} comments</p>
+        {replyCount > 0 && (
+          <p className="text-xs font-mono text-gray-600">
+            {topLevelCount} top-level · {replyCount} replies
+          </p>
+        )}
+      </div>
 
-      {/* ── Comment rows ─────────────────────────────────────────────── */}
+      {/* ── Comment rows ─────────────────────────────────────────────────── */}
       <div className="space-y-2">
         {visible.length === 0 && (
           <p className="text-gray-600 font-mono text-sm py-8 text-center">
@@ -89,13 +114,25 @@ export default function CommentsList({ comments, topics }: Props) {
         )}
 
         {visible.map(c => (
-          <div key={c.id} className="card py-3 space-y-2">
-
+          <div
+            key={c.id}
+            className={`card py-3 space-y-2 ${
+              c.parent_id ? 'ml-4 border-l-2 border-l-amber/30' : ''
+            }`}
+          >
             {/* Comment text */}
             <p className="text-sm text-gray-200 leading-relaxed">{c.original_text}</p>
 
             {/* Meta badges */}
             <div className="flex flex-wrap gap-2 items-center">
+
+              {/* Reply badge */}
+              {c.parent_id && (
+                <span className="font-mono text-xs text-amber/70 bg-amber/5
+                                 border border-amber/20 px-2 py-0.5 rounded-full">
+                  ↩ reply
+                </span>
+              )}
 
               {c.sentiment_label && (
                 <span className={SENT_PILL[c.sentiment_label] ?? 'pill-neu'}>
@@ -129,7 +166,7 @@ export default function CommentsList({ comments, topics }: Props) {
         ))}
       </div>
 
-      {/* ── Pagination ───────────────────────────────────────────────── */}
+      {/* ── Pagination ───────────────────────────────────────────────────── */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
