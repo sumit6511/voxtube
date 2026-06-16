@@ -1,10 +1,11 @@
 import json
 import uuid
 from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .database import engine, get_db, Base
+from .database import engine, get_db, Base, run_migrations, SessionLocal
 from .models import Job, Comment, Topic
 from .schemas import (
     AnalyzeRequest, AnalyzeResponse,
@@ -17,7 +18,6 @@ from .schemas import (
 
 # Create all tables and run lightweight column migrations on startup
 Base.metadata.create_all(bind=engine)
-from .database import run_migrations
 run_migrations(engine)
 
 app = FastAPI(title="VoxTube API", version="1.0.0")
@@ -35,13 +35,13 @@ app.add_middleware(
 
 # Progress milestones — frontend can show a labelled progress bar
 STAGES = {
-    "fetching":       (5,  20),
-    "preprocessing":  (20, 35),
-    "analyzing":      (35, 55),
-    "toxicity":       (55, 70),
-    "building_topics":(70, 85),
-    "building_rag":   (85, 98),
-    "done":           (100, 100),
+    "fetching":        (5,  20),
+    "preprocessing":   (20, 35),
+    "analyzing":       (35, 55),
+    "toxicity":        (55, 70),
+    "building_topics": (70, 85),
+    "building_rag":    (85, 98),
+    "done":            (100, 100),
 }
 
 def _set_job(db, job_id: str, status: str, progress: int, **kwargs):
@@ -56,20 +56,19 @@ def _set_job(db, job_id: str, status: str, progress: int, **kwargs):
 def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
     """
     Runs the full NLP pipeline in the background.
-    Each step is implemented one by one — wired in as we go.
+    Each step is implemented one by one - wired in as we go.
     """
-    from .database import SessionLocal
     from .youtube import fetch_comments
 
     db = SessionLocal()
     try:
 
-        # ── Step 2: Fetch YouTube comments ────────────────────────────────
+        # == Step 2: Fetch YouTube comments (+ replies) ====================
         _set_job(db, job_id, "fetching", 5)
 
         result = fetch_comments(youtube_url, max_comments)
 
-        # Bulk-insert comments with timestamps into DB
+        # Bulk-insert comments with timestamps + threading info into DB
         from datetime import datetime as dt
 
         def _parse_ts(s):
@@ -93,7 +92,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
             comment_count=len(result["comments"]),
         )
 
-        # ── Step 3a: Neplish preprocessing + language detection ──────────
+        # == Step 3a: Neplish preprocessing + language detection ===========
         from .pipeline.preprocessor import preprocess_batch, detect_languages
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
@@ -108,7 +107,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
 
         _set_job(db, job_id, "analyzing", 35)
 
-        # ── Step 3b: XLM-RoBERTa + VADER ────────────────────────────────
+        # == Step 3b: XLM-RoBERTa + VADER ===================================
         from .pipeline.sentiment import analyze_batch as sentiment_batch
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
@@ -124,7 +123,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
 
         _set_job(db, job_id, "toxicity", 55)
 
-        # ── Step 3c: ToxicBERT ────────────────────────────────────────────
+        # == Step 3c: ToxicBERT =============================================
         from .pipeline.toxicity import detect_toxicity_batch, scores_to_json
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
@@ -138,7 +137,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
 
         _set_job(db, job_id, "building_topics", 70)
 
-        # ── Step 3d: BERTopic ────────────────────────────────────────────
+        # == Step 3d: BERTopic ===============================================
         from .pipeline.topics import run_topic_modeling, aggregate_topic_sentiments
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
@@ -176,7 +175,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
 
         _set_job(db, job_id, "building_rag", 85)
 
-        # ── Step 3e: RAG / FAISS ──────────────────────────────────────────
+        # == Step 3e: RAG / FAISS ============================================
         from .pipeline.rag import build_index
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
@@ -295,6 +294,7 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
         comments=comments_out,
     )
 
+
 # ── Job history endpoint ──────────────────────────────────────────────────────
 
 @app.get("/jobs", response_model=JobListResponse)
@@ -317,13 +317,14 @@ def list_jobs(db: Session = Depends(get_db)):
         total=len(jobs),
     )
 
+
 # ── Chat / RAG endpoint ───────────────────────────────────────────────────────
 
 @app.post("/chat/{job_id}", response_model=ChatResponse)
 def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     """
     Ask a natural-language question about a video's comment section.
-    Retrieves the most relevant comments via FAISS, then uses Gemini
+    Retrieves the most relevant comments via FAISS, then uses Ollama
     to generate a grounded answer with citations.
     """
     job = db.query(Job).filter(Job.id == job_id).first()
@@ -345,6 +346,38 @@ def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     return ChatResponse(
         answer=result["answer"],
         sources=[SourceComment(**s) for s in result["sources"]],
+    )
+
+
+# ── Export endpoint ───────────────────────────────────────────────────────────
+
+@app.get("/export/{job_id}/excel")
+def export_excel(job_id: str, db: Session = Depends(get_db)):
+    """
+    Download a multi-sheet Excel report (.xlsx) for a completed job:
+    Summary, Comments (with all NLP annotations), and Topics.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != "done":
+        raise HTTPException(status_code=400, detail=f"Job not complete yet. Status: {job.status}")
+
+    from .pipeline.export import generate_excel_report
+
+    comments = db.query(Comment).filter(Comment.job_id == job_id).all()
+    topics   = db.query(Topic).filter(Topic.job_id   == job_id).all()
+
+    buf = generate_excel_report(job, comments, topics)
+
+    safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in (job.video_title or "voxtube"))
+    safe_title = safe_title.strip().replace(" ", "_")[:50] or "voxtube"
+    filename = f"{safe_title}_{job_id[:8]}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 # ── Evaluation endpoint ───────────────────────────────────────────────────────

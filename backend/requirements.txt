@@ -13,6 +13,7 @@ google-api-python-client
 # Text preprocessing
 ftfy
 emoji
+langdetect
 
 # ML models
 # Install CPU-only torch first:  pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -29,8 +30,11 @@ sentence-transformers
 faiss-cpu
 numpy
 
+# Local LLM (Ollama) - used by RAG chat
+requests
+
 # Evaluation metrics
 scikit-learn
 
-# Gemini LLM (optional — Ollama is used by default)
-google-genai
+# Excel export
+openpyxl

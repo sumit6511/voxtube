@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare } from 'lucide-react'
-import { api } from '../api'
+import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare, FileSpreadsheet } from 'lucide-react'
+import { api, BASE } from '../api'
 import { useStore } from '../store'
 import type { ResultsResponse } from '../api'
 import SentimentChart    from '../components/SentimentChart'
@@ -63,12 +63,22 @@ export default function Dashboard() {
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl font-bold text-white leading-tight truncate">
             {results.video_title ?? 'Analysis Results'}
           </h1>
           <p className="text-xs font-mono text-gray-700 mt-0.5 truncate">{jobId}</p>
         </div>
+        <a
+          href={`${BASE}/export/${jobId}/excel`}
+          download
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          <FileSpreadsheet size={14} />
+          Export Excel
+        </a>
       </div>
 
       {/* ── Stats row ──────────────────────────────────────────────── */}

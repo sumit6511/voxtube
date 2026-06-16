@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:8000'
+export const BASE = 'http://localhost:8000'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -40,6 +40,7 @@ export interface ChatResponse {
   answer:  string
   sources: { id: string; text: string; score: number }[]
 }
+
 export interface MetricsResult {
   accuracy:         number
   precision:        number
