@@ -26,9 +26,10 @@ vaderSentiment
 bertopic
 sentence-transformers
 
-# Vector search
+# Vector search + Hybrid RAG
 faiss-cpu
 numpy
+rank-bm25
 
 # Local LLM (Ollama) - used by RAG chat
 requests
