@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare, FileSpreadsheet } from 'lucide-react'
+import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare, FileSpreadsheet, FileText } from 'lucide-react'
 import { api, BASE } from '../api'
 import { useStore } from '../store'
 import type { ResultsResponse } from '../api'
@@ -77,7 +77,17 @@ export default function Dashboard() {
                      px-3 py-2 rounded-lg transition-all whitespace-nowrap"
         >
           <FileSpreadsheet size={14} />
-          Export Excel
+          Excel
+        </a>
+        <a
+          href={`${BASE}/export/${jobId}/pdf`}
+          download
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          <FileText size={14} />
+          PDF
         </a>
       </div>
 

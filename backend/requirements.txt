@@ -38,3 +38,7 @@ scikit-learn
 
 # Excel export
 openpyxl
+
+# PDF export
+matplotlib
+reportlab

@@ -380,6 +380,36 @@ def export_excel(job_id: str, db: Session = Depends(get_db)):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
+@app.get("/export/{job_id}/pdf")
+def export_pdf(job_id: str, db: Session = Depends(get_db)):
+    """
+    Download a multi-page PDF report for a completed job: summary stats,
+    sentiment/language donuts, sentiment timeline, per-topic sentiment
+    chart + table, toxicity breakdown, and a word cloud.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != "done":
+        raise HTTPException(status_code=400, detail=f"Job not complete yet. Status: {job.status}")
+
+    from .pipeline.pdf_export import generate_pdf_report
+
+    comments = db.query(Comment).filter(Comment.job_id == job_id).all()
+    topics   = db.query(Topic).filter(Topic.job_id   == job_id).all()
+
+    buf = generate_pdf_report(job, comments, topics)
+
+    safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in (job.video_title or "voxtube"))
+    safe_title = safe_title.strip().replace(" ", "_")[:50] or "voxtube"
+    filename = f"{safe_title}_{job_id[:8]}.pdf"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 # ── Evaluation endpoint ───────────────────────────────────────────────────────
 
 @app.get("/evaluate", response_model=EvaluationResponse)
