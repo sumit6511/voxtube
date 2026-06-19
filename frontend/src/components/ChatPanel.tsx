@@ -1,184 +1,120 @@
-import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, ChevronDown } from "lucide-react";
-import { api } from "../api";
+import { useState, useRef, useEffect } from 'react'
+import { Send, Loader2, ChevronDown, Cpu } from 'lucide-react'
+import { api } from '../api'
 
-interface Source {
-  id: string;
-  text: string;
-  score: number;
-}
-interface Message {
-  role: "user" | "assistant";
-  text: string;
-  sources?: Source[];
-  error?: boolean;
+interface Source   { id: string; text: string; score: number }
+interface Message  {
+  role: 'user' | 'assistant'; text: string
+  sources?: Source[]; error?: boolean
 }
 
 const SUGGESTIONS = [
-  "What do viewers think about this video overall?",
-  "What topics are most discussed in the comments?",
-  "Are there any toxic or hateful comments?",
-  "What do people say about the music / editing?",
-  "Which aspects received the most praise?",
-];
+  'What do viewers think about this video overall?',
+  'What topics are most discussed in the comments?',
+  'Are there any toxic or hateful comments?',
+  'What do people say about the music or editing?',
+  'Which aspects received the most praise?',
+]
 
-export default function ChatPanel({ jobId }: { jobId: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+// ── Model selector ────────────────────────────────────────────────────────────
+
+function ModelSelector({
+  selected, onChange
+}: {
+  selected: string
+  onChange: (m: string) => void
+}) {
+  const [models,   setModels]   = useState<string[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState<string | null>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  async function send(question: string) {
-    const q = question.trim();
-    if (!q || loading) return;
-
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: q }]);
-    setLoading(true);
-
-    try {
-      const res = await api.chat(jobId, q);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: res.answer,
-          sources: res.sources,
-        },
-      ]);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Something went wrong.";
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: msg, error: true },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
+    api.ollamaModels()
+      .then(data => {
+        setModels(data.models)
+        setError(data.error)
+        // Set default from server if nothing selected yet
+        if (!selected && (data.models.length > 0 || data.default)) {
+          onChange(data.models[0] ?? data.default)
+        }
+        setLoading(false)
+      })
+      .catch(() => {
+        setError('Could not reach backend')
+        setLoading(false)
+      })
+  }, [])
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-4">
-      {/* ── Message history ────────────────────────────────────────── */}
-      <div className="space-y-3 min-h-[100px]">
-        {/* Suggestions — shown only when no messages yet */}
-        {messages.length === 0 && (
-          <div>
-            <p className="label mb-3">Try asking</p>
-            <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  disabled={loading}
-                  className="text-xs font-body text-gray-400 border border-base-border
-                             hover:border-amber/40 hover:text-gray-200 px-3 py-2
-                             rounded-lg transition-all text-left"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+    <div className="flex items-center gap-2 pb-3 border-b border-base-border">
+      <Cpu size={13} className="text-gray-600 flex-shrink-0" />
+      <span className="text-xs font-mono text-gray-600">Model</span>
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[88%] rounded-xl px-4 py-3 text-sm font-body leading-relaxed
-              ${
-                msg.role === "user"
-                  ? "bg-amber/10 border border-amber/20 text-gray-200"
-                  : msg.error
-                    ? "bg-neg/5 border border-neg/20 text-neg"
-                    : "card text-gray-300"
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+      {loading && (
+        <Loader2 size={12} className="animate-spin text-gray-600" />
+      )}
 
-              {msg.sources && msg.sources.length > 0 && (
-                <SourcesCitation sources={msg.sources} />
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* Loading indicator */}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="card px-4 py-3 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-amber" />
-              <span className="text-xs font-mono text-gray-500">Thinking…</span>
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* ── Input row ──────────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <input
-          className="input-field flex-1 py-2.5 text-sm"
-          placeholder="Ask about the comments…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send(input)}
-          disabled={loading}
-        />
-        <button
-          onClick={() => send(input)}
-          disabled={loading || !input.trim()}
-          className="btn-primary px-4 flex items-center gap-2 flex-shrink-0"
+      {!loading && models.length > 0 && (
+        <select
+          value={selected}
+          onChange={e => onChange(e.target.value)}
+          className="text-xs font-mono bg-base border border-base-border
+                     text-amber rounded-lg px-2.5 py-1 cursor-pointer
+                     focus:outline-none focus:border-amber/60 transition-colors"
         >
-          {loading ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Send size={15} />
-          )}
-        </button>
-      </div>
+          {models.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      )}
 
-      <p className="text-xs font-mono text-gray-700">
-        Powered by Llama 3.2 via Ollama · answers grounded in retrieved comments  
-      </p>
+      {!loading && models.length === 0 && !error && (
+        <span className="text-xs font-mono text-gray-600">
+          No models pulled — run: <code className="text-amber">ollama pull llama3.2</code>
+        </span>
+      )}
+
+      {!loading && error && (
+        <span className="text-xs font-mono text-neg/80">
+          {error}
+        </span>
+      )}
+
+      {!loading && selected && !error && (
+        <span className="ml-auto text-xs font-mono text-gray-700 hidden sm:block">
+          {selected}
+        </span>
+      )}
     </div>
-  );
+  )
 }
 
-// ── Source citations collapse ──────────────────────────────────────────────
+// ── Source citations ──────────────────────────────────────────────────────────
 
 function SourcesCitation({ sources }: { sources: Source[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   return (
     <div className="mt-3 border-t border-base-border pt-2">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
         className="flex items-center gap-1.5 text-xs font-mono text-gray-600
                    hover:text-gray-400 transition-colors"
       >
         <ChevronDown
           size={12}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
-        {sources.length} source{sources.length !== 1 ? "s" : ""} used
+        {sources.length} source{sources.length !== 1 ? 's' : ''} used
       </button>
 
       {open && (
         <div className="mt-2 space-y-1.5">
-          {sources.map((s) => (
+          {sources.map(s => (
             <div
               key={s.id}
-              className="text-xs text-gray-500 font-body bg-base rounded-lg px-3 py-2
-                         border border-base-border/50"
+              className="text-xs text-gray-500 font-body bg-base rounded-lg
+                         px-3 py-2 border border-base-border/50"
             >
               <span className="font-mono text-amber/60 mr-2">
                 {(s.score * 100).toFixed(0)}%
@@ -189,5 +125,129 @@ function SourcesCitation({ sources }: { sources: Source[] }) {
         </div>
       )}
     </div>
-  );
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function ChatPanel({ jobId }: { jobId: string }) {
+  const [messages,      setMessages]      = useState<Message[]>([])
+  const [input,         setInput]         = useState('')
+  const [loading,       setLoading]       = useState(false)
+  const [selectedModel, setSelectedModel] = useState('')
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
+
+  async function send(question: string) {
+    const q = question.trim()
+    if (!q || loading) return
+
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', text: q }])
+    setLoading(true)
+
+    try {
+      const res = await api.chat(jobId, q, selectedModel || undefined)
+      setMessages(prev => [...prev, {
+        role: 'assistant', text: res.answer, sources: res.sources,
+      }])
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong.'
+      setMessages(prev => [...prev, { role: 'assistant', text: msg, error: true }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+
+      {/* Model selector */}
+      <ModelSelector selected={selectedModel} onChange={setSelectedModel} />
+
+      {/* Message history */}
+      <div className="space-y-3 min-h-[100px]">
+
+        {/* Suggestions */}
+        {messages.length === 0 && (
+          <div>
+            <p className="label mb-3">Try asking</p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTIONS.map(s => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  disabled={loading}
+                  className="text-xs font-body text-gray-400 border border-base-border
+                             hover:border-amber/40 hover:text-gray-200
+                             px-3 py-2 rounded-lg transition-all text-left"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[88%] rounded-xl px-4 py-3 text-sm font-body leading-relaxed
+              ${msg.role === 'user'
+                ? 'bg-amber/10 border border-amber/20 text-gray-200'
+                : msg.error
+                  ? 'bg-neg/5 border border-neg/20 text-neg'
+                  : 'card text-gray-300'
+              }`}
+            >
+              <p className="whitespace-pre-wrap">{msg.text}</p>
+              {msg.sources && msg.sources.length > 0 && (
+                <SourcesCitation sources={msg.sources} />
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="card px-4 py-3 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin text-amber" />
+              <span className="text-xs font-mono text-gray-500">
+                {selectedModel ? `${selectedModel} thinking…` : 'Thinking…'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input row */}
+      <div className="flex gap-2">
+        <input
+          className="input-field flex-1 py-2.5 text-sm"
+          placeholder="Ask about the comments…"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send(input)}
+          disabled={loading}
+        />
+        <button
+          onClick={() => send(input)}
+          disabled={loading || !input.trim()}
+          className="btn-primary px-4 flex items-center gap-2 flex-shrink-0"
+        >
+          {loading
+            ? <Loader2 size={15} className="animate-spin" />
+            : <Send size={15} />}
+        </button>
+      </div>
+
+      <p className="text-xs font-mono text-gray-700">
+        Powered by Ollama (local LLM) · Hybrid BM25 + FAISS retrieval
+      </p>
+    </div>
+  )
 }

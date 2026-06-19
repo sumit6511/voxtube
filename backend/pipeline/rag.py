@@ -237,10 +237,12 @@ def _sparse_retrieve(
     return np.argsort(scores)[::-1][:actual_n].tolist()
 
 
-def _call_ollama(question: str, source_comments: list[dict]) -> str:
+def _call_ollama(question: str, source_comments: list[dict],
+                  model: str | None = None) -> str:
     """Send retrieved comments + question to a local Ollama model."""
     import requests
 
+    selected_model = model or OLLAMA_MODEL
     context = "\n".join(f"  - {c['text']}" for c in source_comments)
     prompt  = (
         f"You are an analyst summarising a YouTube video's comment section.\n\n"
@@ -254,7 +256,7 @@ def _call_ollama(question: str, source_comments: list[dict]) -> str:
     try:
         resp = requests.post(
             f"{OLLAMA_HOST}/api/generate",
-            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            json={"model": selected_model, "prompt": prompt, "stream": False},
             timeout=120,
         )
         resp.raise_for_status()
@@ -268,15 +270,16 @@ def _call_ollama(question: str, source_comments: list[dict]) -> str:
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             return (
-                f"Model '{OLLAMA_MODEL}' not found in Ollama. "
-                f"Pull it first: ollama pull {OLLAMA_MODEL}"
+                f"Model '{selected_model}' not found in Ollama. "
+                f"Pull it first: ollama pull {selected_model}"
             )
         return f"Ollama error: {e}"
     except Exception as e:
         return f"Ollama error: {e}"
 
 
-def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT) -> dict:
+def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
+              model: str | None = None) -> dict:
     """
     Hybrid retrieval: fuse FAISS (dense) + BM25 (sparse) via RRF, then
     generate a grounded answer with Ollama.
@@ -285,6 +288,7 @@ def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT) -> dict:
         job_id:   The job whose indexes to search.
         question: The user's natural-language question.
         top_k:    How many fused results to pass as context (default 5).
+        model:    Ollama model name to use (overrides OLLAMA_MODEL env var).
 
     Returns:
         {
@@ -334,6 +338,6 @@ def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT) -> dict:
             })
 
     # ── Generate answer ───────────────────────────────────────────────────────
-    answer = _call_ollama(question, sources)
+    answer = _call_ollama(question, sources, model=model)
 
     return {"answer": answer, "sources": sources}

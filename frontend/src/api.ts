@@ -82,10 +82,10 @@ export const api = {
   results: (jobId: string) =>
     request<ResultsResponse>(`/results/${jobId}`),
 
-  chat: (jobId: string, question: string) =>
+  chat: (jobId: string, question: string, model?: string) =>
     request<ChatResponse>(`/chat/${jobId}`, {
       method: 'POST',
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, model: model ?? null }),
     }),
 
   evaluate: () =>
@@ -93,4 +93,7 @@ export const api = {
 
   jobs: () =>
     request<{ jobs: JobSummary[]; total: number }>('/jobs'),
+
+  ollamaModels: () =>
+    request<{ models: string[]; default: string; error: string | null }>('/ollama/models'),
 }

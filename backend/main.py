@@ -318,6 +318,28 @@ def list_jobs(db: Session = Depends(get_db)):
     )
 
 
+# ── Ollama model selector ─────────────────────────────────────────────────────
+
+@app.get("/ollama/models")
+def list_ollama_models():
+    """
+    Return the list of Ollama models available on the local server.
+    Safe to call even when Ollama is not running — returns empty list + error.
+    """
+    import requests as _req
+    from .pipeline.rag import OLLAMA_HOST, OLLAMA_MODEL
+
+    try:
+        resp = _req.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
+        resp.raise_for_status()
+        models = [m["name"] for m in resp.json().get("models", [])]
+        return {"models": models, "default": OLLAMA_MODEL, "error": None}
+    except _req.exceptions.ConnectionError:
+        return {"models": [], "default": OLLAMA_MODEL,
+                "error": "Ollama not running — start it with: ollama serve"}
+    except Exception as e:
+        return {"models": [], "default": OLLAMA_MODEL, "error": str(e)}
+
 # ── Chat / RAG endpoint ───────────────────────────────────────────────────────
 
 @app.post("/chat/{job_id}", response_model=ChatResponse)
@@ -339,7 +361,7 @@ def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     from .pipeline.rag import query_rag
 
     try:
-        result = query_rag(job_id, request.question)
+        result = query_rag(job_id, request.question, model=request.model or None)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
