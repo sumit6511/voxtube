@@ -15,9 +15,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AnalyzeResponse  { job_id: string }
-export interface StatusResponse   {
+export interface StatusResponse {
   job_id: string; status: string; progress: number
-  comment_count: number; video_title?: string; error_message?: string
+  comment_count: number; video_id?: string
+  video_title?: string; error_message?: string
 }
 export interface Topic {
   topic_id: number; label: string; keywords: string[]
@@ -32,13 +33,30 @@ export interface Comment {
   topic_id?: number; lang?: string; published_at?: string
 }
 export interface ResultsResponse {
-  job_id: string; video_title?: string; total_comments: number
+  job_id: string; video_id?: string; video_title?: string
+  youtube_url?: string; channel_title?: string
+  view_count?: number; like_count?: number
+  total_comments: number
   sentiment_summary: { positive: number; neutral: number; negative: number }
   topics: Topic[]; comments: Comment[]
 }
 export interface ChatResponse {
   answer:  string
   sources: { id: string; text: string; score: number }[]
+}
+
+export interface Entity {
+  text:      string
+  category:  'Person' | 'Organization' | 'Location' | 'Miscellaneous'
+  count:     number
+  sentiment: string
+}
+
+export interface NerResponse {
+  entities:        Entity[]
+  total_processed: number
+  total_skipped:   number
+  model_available: boolean
 }
 
 export interface MetricsResult {
@@ -96,4 +114,7 @@ export const api = {
 
   ollamaModels: () =>
     request<{ models: string[]; default: string; error: string | null }>('/ollama/models'),
+
+  ner: (jobId: string) =>
+    request<NerResponse>(`/ner/${jobId}`),
 }

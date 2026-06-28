@@ -89,6 +89,9 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
             db, job_id, "preprocessing", 20,
             video_id=result["video_id"],
             video_title=result["video_title"],
+            channel_title=result.get("channel_title"),
+            view_count=result.get("view_count"),
+            like_count=result.get("like_count"),
             comment_count=len(result["comments"]),
         )
 
@@ -232,6 +235,7 @@ def get_status(job_id: str, db: Session = Depends(get_db)):
         status=job.status,
         progress=job.progress,
         comment_count=job.comment_count,
+        video_id=job.video_id,
         video_title=job.video_title,
         error_message=job.error_message,
     )
@@ -287,7 +291,12 @@ def get_results(job_id: str, db: Session = Depends(get_db)):
 
     return ResultsResponse(
         job_id=job_id,
+        video_id=job.video_id,
         video_title=job.video_title,
+        youtube_url=job.youtube_url,
+        channel_title=job.channel_title,
+        view_count=job.view_count,
+        like_count=job.like_count,
         total_comments=len(comments),
         sentiment_summary=SentimentSummary(**counts),
         topics=topics_out,
@@ -339,6 +348,28 @@ def list_ollama_models():
                 "error": "Ollama not running — start it with: ollama serve"}
     except Exception as e:
         return {"models": [], "default": OLLAMA_MODEL, "error": str(e)}
+
+# ── NER endpoint ─────────────────────────────────────────────────────────────
+
+@app.get("/ner/{job_id}")
+def get_entities(job_id: str, db: Session = Depends(get_db)):
+    """
+    Run Named Entity Recognition on a completed job's comments.
+    Called on-demand from the dashboard (not part of the main pipeline).
+    First call loads dslim/bert-base-NER (~400MB, cached after).
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != "done":
+        raise HTTPException(status_code=400,
+                            detail=f"Job not complete yet. Status: {job.status}")
+
+    from .pipeline.ner import extract_entities
+
+    comments = db.query(Comment).filter(Comment.job_id == job_id).all()
+    result   = extract_entities(comments)
+    return result
 
 # ── Chat / RAG endpoint ───────────────────────────────────────────────────────
 

@@ -24,6 +24,9 @@ def run_migrations(engine):
     migrations = [
         "ALTER TABLE comments ADD COLUMN lang VARCHAR",
         "ALTER TABLE comments ADD COLUMN published_at DATETIME",
+        "ALTER TABLE jobs ADD COLUMN view_count INTEGER",
+        "ALTER TABLE jobs ADD COLUMN like_count INTEGER",
+        "ALTER TABLE jobs ADD COLUMN channel_title VARCHAR",
     ]
     with engine.connect() as conn:
         for stmt in migrations:

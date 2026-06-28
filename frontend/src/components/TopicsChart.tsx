@@ -24,7 +24,6 @@ export default function TopicsChart({ topics }: Props) {
 
   return (
     <div>
-      <p className="label mb-3">Per-topic sentiment</p>
 
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 0, right: 0, left: -22, bottom: 40 }}>

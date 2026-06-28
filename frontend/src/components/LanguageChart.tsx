@@ -38,7 +38,6 @@ export default function LanguageChart({ comments }: Props) {
 
   return (
     <div>
-      <p className="label mb-3">Language breakdown</p>
 
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>

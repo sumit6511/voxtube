@@ -21,6 +21,7 @@ class JobStatusResponse(BaseModel):
     status:        str
     progress:      int
     comment_count: int
+    video_id:      Optional[str] = None
     video_title:   Optional[str] = None
     error_message: Optional[str] = None
 
@@ -60,7 +61,12 @@ class SentimentSummary(BaseModel):
 
 class ResultsResponse(BaseModel):
     job_id:            str
-    video_title:       Optional[str]
+    video_id:          Optional[str] = None
+    video_title:       Optional[str] = None
+    youtube_url:       Optional[str] = None
+    channel_title:     Optional[str] = None
+    view_count:        Optional[int] = None
+    like_count:        Optional[int] = None
     total_comments:    int
     sentiment_summary: SentimentSummary
     topics:            List[TopicOut]
