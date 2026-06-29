@@ -17,11 +17,15 @@ class Job(Base):
     youtube_url   = Column(String, nullable=False)
     video_id      = Column(String, nullable=True)
     video_title   = Column(String, nullable=True)
-    # pending → fetching → preprocessing → analyzing → building_topics → building_rag → done | failed
+    # pending → fetching → preprocessing → analyzing → toxicity → building_topics → building_rag → done | failed
     status        = Column(String, default="pending")
     progress      = Column(Integer, default=0)        # 0-100
     error_message = Column(Text, nullable=True)
     comment_count = Column(Integer, default=0)
+    # Video metadata (fetched from YouTube Data API)
+    view_count    = Column(Integer, nullable=True)
+    like_count    = Column(Integer, nullable=True)
+    channel_title = Column(String,  nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

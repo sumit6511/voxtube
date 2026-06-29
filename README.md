@@ -11,7 +11,8 @@ This project was built with a Python (FastAPI) backend and a React (TypeScript +
 - **Sentiment Analysis**: Uses XLM-RoBERTa and VADER to accurately classify the sentiment of comments as positive, neutral, or negative.
 - **Toxicity Detection**: Leverages ToxicBERT to identify toxic and harmful comments.
 - **Topic Modeling**: Groups comments into coherent topics using BERTopic, helping you understand what viewers are talking about.
-- **AI Chat / RAG System**: Ask natural language questions about the video's comment section! Powered by FAISS (for vector search) and Google's Gemini LLM to generate grounded answers with source comment citations.
+- **AI Chat / RAG System**: Ask natural language questions about the video's comment section! Powered by FAISS (for vector search) and a local Ollama LLM to generate grounded answers with source comment citations.
+- **Report Export**: Export the analysis results as Excel spreadsheets or detailed PDF reports with charts.
 
 ## Tech Stack
 
@@ -19,7 +20,7 @@ This project was built with a Python (FastAPI) backend and a React (TypeScript +
 - **Framework**: FastAPI (Python)
 - **Database**: SQLite (managed with SQLAlchemy & Pydantic)
 - **NLP & ML**: Hugging Face Transformers, PyTorch, SentencePiece, VADER Sentiment, BERTopic, FAISS
-- **LLM Integration**: Google GenAI (Gemini)
+- **LLM Integration**: Local LLM via Ollama
 
 ### Frontend
 - **Framework**: React 19 + TypeScript
@@ -59,7 +60,8 @@ voxtube/
 - Python 3.9+
 - Node.js 18+
 - YouTube Data API Key
-- Google Gemini API Key
+- Ollama installed locally (optional, for RAG chat)
+- Hugging Face Token (optional, if using gated models)
 
 ### Backend Setup
 
@@ -88,7 +90,9 @@ voxtube/
    Copy `.env.example` to `.env` and fill in your API keys:
    ```env
    YOUTUBE_API_KEY=your_youtube_api_key_here
-   GEMINI_API_KEY=your_gemini_api_key_here
+   HF_TOKEN=your_huggingface_token_here
+   OLLAMA_HOST=http://localhost:11434
+   OLLAMA_MODEL=llama3.2
    ```
 
 5. **Run the backend server**:
@@ -120,6 +124,7 @@ voxtube/
 2. Paste a YouTube video URL into the application.
 3. The system will start fetching and processing comments in the background.
 4. Once processing is complete, you can view the sentiment summary, toxicity reports, identified topics, and interact with the AI Chat to ask specific questions about viewer feedback.
+5. You can also export the analysis results as Excel spreadsheets or PDF reports for offline viewing.
 
 ## License
 This project is licensed under the ISC License.

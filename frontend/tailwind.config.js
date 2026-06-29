@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',    // toggle via <html class="dark">
   theme: {
     extend: {
       fontFamily: {
@@ -9,7 +10,7 @@ export default {
         mono:    ['"IBM Plex Mono"', 'monospace'],
       },
       colors: {
-        base:    { DEFAULT: '#0D0F14', surface: '#13161E', border: '#1E2330' },
+        base:    { DEFAULT: 'var(--color-base)', surface: 'var(--color-surface)', border: 'var(--color-border)' },
         amber:   { DEFAULT: '#F59E0B', dim: '#92630A', glow: '#FCD34D' },
         pos:     '#10B981',
         neu:     '#6B7280',

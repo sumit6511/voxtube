@@ -35,33 +35,61 @@ def _build_client():
     return build("youtube", "v3", developerKey=api_key)
 
 
-def _get_video_title(client, video_id: str) -> str:
+def _get_video_metadata(client, video_id: str) -> dict:
+    """
+    Fetch video title, channel name, and public statistics.
+
+    Returns:
+        {
+            "title":         str,
+            "channel_title": str | None,
+            "view_count":    int | None,
+            "like_count":    int | None,
+        }
+    """
     response = client.videos().list(
-        part="snippet",
+        part="snippet,statistics",
         id=video_id,
     ).execute()
 
     items = response.get("items", [])
     if not items:
-        return "Unknown Video"
-    return items[0]["snippet"]["title"]
+        return {"title": "Unknown Video", "channel_title": None,
+                "view_count": None, "like_count": None}
+
+    snippet    = items[0].get("snippet",    {})
+    statistics = items[0].get("statistics", {})
+
+    def _int(val):
+        try:    return int(val)
+        except: return None
+
+    return {
+        "title":         snippet.get("title", "Unknown Video"),
+        "channel_title": snippet.get("channelTitle"),
+        "view_count":    _int(statistics.get("viewCount")),
+        "like_count":    _int(statistics.get("likeCount")),
+    }
 
 
 # ── Main fetch function ───────────────────────────────────────────────────────
 
 def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
     """
-    Fetch top-level comments from a YouTube video.
+    Fetch top-level comments and their inline replies from a YouTube video.
 
     Args:
         youtube_url:  Any valid YouTube URL format.
         max_comments: Maximum number of comments to collect (default 200).
+                      This counts BOTH top-level comments and replies.
 
     Returns:
         {
             "video_id":    str,
             "video_title": str,
-            "comments":    [{"text": str, "published_at": str | None}, ...]
+            "comments":    [
+                {"text": str, "published_at": str | None}
+            ]
         }
 
     Raises:
@@ -73,7 +101,7 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
         raise ValueError(f"Could not extract a video ID from: {youtube_url}")
 
     client = _build_client()
-    video_title = _get_video_title(client, video_id)
+    meta   = _get_video_metadata(client, video_id)
 
     comments       = []
     next_page_token = None
@@ -109,7 +137,7 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
         for item in response.get("items", []):
             snippet = item["snippet"]["topLevelComment"]["snippet"]
             text    = snippet["textDisplay"]
-            pub     = snippet.get("publishedAt")      # ISO 8601 string or None
+            pub     = snippet.get("publishedAt")          # ISO 8601 string or None
             if text.strip():
                 comments.append({"text": text, "published_at": pub})
 
@@ -118,7 +146,10 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
             break                       # no more pages available
 
     return {
-        "video_id":    video_id,
-        "video_title": video_title,
-        "comments":    comments,
+        "video_id":     video_id,
+        "video_title":  meta["title"],
+        "channel_title":meta["channel_title"],
+        "view_count":   meta["view_count"],
+        "like_count":   meta["like_count"],
+        "comments":     comments,
     }

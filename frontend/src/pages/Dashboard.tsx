@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare } from 'lucide-react'
-import { api } from '../api'
+import { ArrowLeft, BarChart3, List, AlertTriangle, MessageSquare,
+         FileSpreadsheet, FileText, Tag } from 'lucide-react'
+import ThemeToggle from '../components/ThemeToggle'
+import { api, BASE } from '../api'
 import { useStore } from '../store'
 import type { ResultsResponse } from '../api'
 import SentimentChart    from '../components/SentimentChart'
@@ -12,14 +14,17 @@ import ChatPanel         from '../components/ChatPanel'
 import WordCloud         from '../components/WordCloud'
 import LanguageChart     from '../components/LanguageChart'
 import SentimentTimeline from '../components/SentimentTimeline'
+import ChartCard         from '../components/ChartCard'
+import EntitiesPanel     from '../components/EntitiesPanel'
 
-type Tab = 'overview' | 'comments' | 'toxicity' | 'chat'
+type Tab = 'overview' | 'comments' | 'toxicity' | 'entities' | 'chat'
 
 const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
-  { id: 'overview', label: 'Overview',  Icon: BarChart3      },
-  { id: 'comments', label: 'Comments',  Icon: List           },
-  { id: 'toxicity', label: 'Toxicity',  Icon: AlertTriangle  },
-  { id: 'chat',     label: 'Chat',      Icon: MessageSquare  },
+  { id: 'overview',  label: 'Overview',  Icon: BarChart3      },
+  { id: 'comments',  label: 'Comments',  Icon: List           },
+  { id: 'toxicity',  label: 'Toxicity',  Icon: AlertTriangle  },
+  { id: 'entities',  label: 'Entities',  Icon: Tag            },
+  { id: 'chat',      label: 'Chat',      Icon: MessageSquare  },
 ]
 
 export default function Dashboard() {
@@ -56,19 +61,76 @@ export default function Dashboard() {
     <div className="min-h-screen px-4 py-6 max-w-5xl mx-auto">
 
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3 mb-6">
+      <div className="flex items-start gap-3 mb-5">
         <button
           onClick={() => navigate('/')}
           className="mt-0.5 text-gray-500 hover:text-white transition-colors flex-shrink-0"
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="min-w-0">
+
+        {/* Thumbnail */}
+        {results.video_id && (
+          <a
+            href={results.youtube_url ?? `https://youtube.com/watch?v=${results.video_id}`}
+            target="_blank" rel="noopener noreferrer"
+            className="flex-shrink-0 rounded-lg overflow-hidden border border-base-border
+                       hover:border-amber/40 transition-colors"
+          >
+            <img
+              src={`https://img.youtube.com/vi/${results.video_id}/mqdefault.jpg`}
+              alt="thumbnail"
+              className="w-24 h-[54px] object-cover block"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </a>
+        )}
+
+        {/* Title + meta */}
+        <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl font-bold text-white leading-tight truncate">
             {results.video_title ?? 'Analysis Results'}
           </h1>
-          <p className="text-xs font-mono text-gray-700 mt-0.5 truncate">{jobId}</p>
+          <div className="flex flex-wrap items-center gap-3 mt-1">
+            {results.channel_title && (
+              <span className="text-xs font-mono text-gray-500">{results.channel_title}</span>
+            )}
+            {results.view_count != null && (
+              <span className="text-xs font-mono text-gray-600">
+                {results.view_count.toLocaleString()} views
+              </span>
+            )}
+            {results.like_count != null && (
+              <span className="text-xs font-mono text-gray-600">
+                {results.like_count.toLocaleString()} likes
+              </span>
+            )}
+          </div>
+          <p className="text-xs font-mono text-gray-800 mt-0.5 truncate">{jobId}</p>
         </div>
+
+        {/* Theme + Export buttons */}
+        <ThemeToggle />
+        <a
+          href={`${BASE}/export/${jobId}/excel`}
+          download
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          <FileSpreadsheet size={14} />
+          Excel
+        </a>
+        <a
+          href={`${BASE}/export/${jobId}/pdf`}
+          download
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          <FileText size={14} />
+          PDF
+        </a>
       </div>
 
       {/* ── Stats row ──────────────────────────────────────────────── */}
@@ -112,17 +174,21 @@ export default function Dashboard() {
 
           {/* Row 1: Sentiment + Language */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="card"><SentimentChart data={ss} /></div>
-            <div className="card"><LanguageChart  comments={comments} /></div>
+            <ChartCard title="Sentiment distribution" filename="sentiment-distribution">
+              <SentimentChart data={ss} />
+            </ChartCard>
+            <ChartCard title="Language breakdown" filename="language-breakdown">
+              <LanguageChart comments={comments} />
+            </ChartCard>
           </div>
 
           {/* Row 2: Sentiment timeline */}
-          <div className="card">
+          <ChartCard title="Sentiment over time" filename="sentiment-timeline">
             <SentimentTimeline comments={comments} />
-          </div>
+          </ChartCard>
 
           {/* Row 3: Topics */}
-          <div className="card">
+          <ChartCard title="Per-topic sentiment" filename="topics-sentiment">
             {topics.length > 0
               ? <TopicsChart topics={topics} />
               : (
@@ -131,12 +197,12 @@ export default function Dashboard() {
                 </div>
               )
             }
-          </div>
+          </ChartCard>
 
           {/* Row 4: Word cloud */}
-          <div className="card">
+          <ChartCard title="Word cloud" filename="word-cloud">
             <WordCloud comments={comments} />
-          </div>
+          </ChartCard>
 
         </div>
       )}
@@ -147,6 +213,10 @@ export default function Dashboard() {
 
       {tab === 'toxicity' && (
         <ToxicityPanel comments={comments} />
+      )}
+
+      {tab === 'entities' && (
+        <EntitiesPanel jobId={jobId!} />
       )}
 
       {tab === 'chat' && (

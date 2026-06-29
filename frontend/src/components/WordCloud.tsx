@@ -51,7 +51,7 @@ function lerp(v: number, inMin: number, inMax: number, outMin: number, outMax: n
   return outMin + ((v - inMin) / (inMax - inMin)) * (outMax - outMin)
 }
 
-// Warm + vibrant palette — similar feel to the reference image
+// Warm + vibrant palette — similar feel to classic word cloud visualizations
 const PALETTE = [
   '#F59E0B', // amber
   '#EF4444', // red
@@ -134,12 +134,9 @@ export default function WordCloud({ comments }: Props) {
 
   return (
     <div ref={containerRef}>
-      <div className="flex items-center justify-between mb-3">
-        <p className="label">Word cloud</p>
-        <p className="font-mono text-xs text-gray-600">
-          {placed.length} words · {comments.length} comments
-        </p>
-      </div>
+      <p className="font-mono text-xs text-gray-600 text-right mb-3">
+        {placed.length} words · {comments.length} comments
+      </p>
 
       {computing && (
         <div className="h-[380px] flex items-center justify-center">

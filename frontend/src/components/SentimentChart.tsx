@@ -24,7 +24,6 @@ export default function SentimentChart({ data }: Props) {
 
   return (
     <div>
-      <p className="label mb-3">Sentiment distribution</p>
 
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>

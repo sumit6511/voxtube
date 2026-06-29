@@ -84,13 +84,10 @@ export default function SentimentTimeline({ comments }: Props) {
 
   if (withDates === 0) {
     return (
-      <div>
-        <p className="label mb-3">Sentiment over time</p>
-        <div className="h-44 flex items-center justify-center">
-          <p className="text-gray-600 font-mono text-sm text-center px-4">
-            No timestamp data — re-analyze the video to enable this chart.
-          </p>
-        </div>
+      <div className="h-44 flex items-center justify-center">
+        <p className="text-gray-600 font-mono text-sm text-center px-4">
+          No timestamp data — re-analyze the video to enable this chart.
+        </p>
       </div>
     )
   }
@@ -100,12 +97,9 @@ export default function SentimentTimeline({ comments }: Props) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <p className="label">Sentiment over time</p>
-        <p className="font-mono text-xs text-gray-600">
-          {periodLabel} · {points.length} periods · {withDates} comments
-        </p>
-      </div>
+      <p className="font-mono text-xs text-gray-600 text-right mb-3">
+        {periodLabel} · {points.length} periods · {withDates} comments
+      </p>
 
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>

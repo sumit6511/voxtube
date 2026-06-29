@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Clapperboard, ArrowRight, Loader2 } from 'lucide-react'
+import ThemeToggle from '../components/ThemeToggle'
 import { api } from '../api'
 import { useStore } from '../store'
 
@@ -36,6 +37,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
+
+      {/* Theme toggle — top-right */}
+      <div className="fixed top-4 right-4">
+        <ThemeToggle />
+      </div>
 
       {/* Wordmark */}
       <div className="animate-fade-up mb-12 text-center" style={{ animationDelay: '0ms' }}>

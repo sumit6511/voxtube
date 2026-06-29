@@ -3,14 +3,14 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# ── Requests ──────────────────────────────────────────────────────────────────
+# == Requests ====================================================================
 
 class AnalyzeRequest(BaseModel):
     url: str
     max_comments: int = 200   # how many comments to fetch
 
 
-# ── Responses ─────────────────────────────────────────────────────────────────
+# == Responses ====================================================================
 
 class AnalyzeResponse(BaseModel):
     job_id: str
@@ -21,6 +21,7 @@ class JobStatusResponse(BaseModel):
     status:        str
     progress:      int
     comment_count: int
+    video_id:      Optional[str] = None
     video_title:   Optional[str] = None
     error_message: Optional[str] = None
 
@@ -34,7 +35,7 @@ class CommentOut(BaseModel):
     vader_label:     Optional[str]
     vader_compound:  Optional[float]
     is_toxic:        int
-    toxicity_json:   Optional[str]
+    toxicity_json:   Optional[str]   # raw JSON string, frontend parses it
     topic_id:        Optional[int]
     lang:            Optional[str]      = None  # 'nepali' | 'english' | 'neplish'
     published_at:    Optional[datetime] = None  # when the comment was posted
@@ -60,17 +61,23 @@ class SentimentSummary(BaseModel):
 
 class ResultsResponse(BaseModel):
     job_id:            str
-    video_title:       Optional[str]
+    video_id:          Optional[str] = None
+    video_title:       Optional[str] = None
+    youtube_url:       Optional[str] = None
+    channel_title:     Optional[str] = None
+    view_count:        Optional[int] = None
+    like_count:        Optional[int] = None
     total_comments:    int
     sentiment_summary: SentimentSummary
     topics:            List[TopicOut]
     comments:          List[CommentOut]
 
 
-# ── RAG chat ──────────────────────────────────────────────────────────────────
+# == RAG chat ====================================================================
 
 class ChatRequest(BaseModel):
     question: str
+    model:    Optional[str] = None   # override OLLAMA_MODEL env var if set
 
 
 class SourceComment(BaseModel):
@@ -84,14 +91,14 @@ class ChatResponse(BaseModel):
     sources: List[SourceComment]
 
 
-# ── Evaluation ────────────────────────────────────────────────────────────────
+# == Evaluation ====================================================================
 
 class MetricsResult(BaseModel):
     accuracy:         float
     precision:        float
     recall:           float
     f1:               float
-    confusion_matrix: List[List[int]]   # 3×3  [positive, neutral, negative]
+    confusion_matrix: List[List[int]]   # 3x3  [positive, neutral, negative]
 
 
 class EvaluationResponse(BaseModel):
@@ -102,7 +109,7 @@ class EvaluationResponse(BaseModel):
     note:               Optional[str] = None
 
 
-# ── Job history ───────────────────────────────────────────────────────────────
+# == Job history ====================================================================
 
 class JobSummary(BaseModel):
     id:            str
@@ -119,3 +126,4 @@ class JobSummary(BaseModel):
 class JobListResponse(BaseModel):
     jobs:  List[JobSummary]
     total: int
+
