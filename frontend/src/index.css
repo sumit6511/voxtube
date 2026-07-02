@@ -4,7 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS variables: dark mode (default) ─────────────────────────────────── */
 :root {
   --color-base:    #0D0F14;
   --color-surface: #13161E;
@@ -13,7 +12,6 @@
   --color-muted:   #6B7280;
 }
 
-/* ── CSS variables: light mode ──────────────────────────────────────────── */
 :root:not(.dark) {
   --color-base:    #F8FAFC;
   --color-surface: #FFFFFF;
@@ -24,8 +22,7 @@
 
 @layer base {
   * { box-sizing: border-box; }
-
-  html { @apply dark; }    /* default: dark */
+  html { @apply dark; }
 
   body {
     background-color: var(--color-base);
@@ -37,7 +34,7 @@
   .dark body {
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245,158,11,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 90% 80%,  rgba(245,158,11,0.03) 0%, transparent 50%);
+      radial-gradient(ellipse 40% 30% at 90% 80%, rgba(245,158,11,0.03) 0%, transparent 50%);
   }
 
   ::-webkit-scrollbar { width: 4px; }
@@ -45,28 +42,15 @@
   ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 9999px; }
 }
 
-/* ── Light mode: fix text that is invisible on white ────────────────────── */
-/*   Specificity: :root(0,1,0) + :not(.dark)(0,1,0) + .class(0,1,0) = (0,3,0)
-     beats Tailwind's single-class (0,1,0) — no !important needed.          */
-
 :root:not(.dark) .text-white    { color: #0F172A; }
 :root:not(.dark) .text-gray-100 { color: #0F172A; }
 :root:not(.dark) .text-gray-200 { color: #1E293B; }
 :root:not(.dark) .text-gray-300 { color: #334155; }
-
-/* Dark hardcoded backgrounds flip to light equivalents */
 :root:not(.dark) .bg-gray-950   { background-color: #F8FAFC; }
 :root:not(.dark) .bg-gray-900   { background-color: #F1F5F9; }
 :root:not(.dark) .bg-gray-800   { background-color: #E2E8F0; }
-
-/* Dark hardcoded borders flip */
 :root:not(.dark) .border-gray-700 { border-color: #CBD5E1; }
 :root:not(.dark) .border-gray-800 { border-color: #E2E8F0; }
-
-/* Keep accent / semantic colors the same in both modes:              */
-/* text-amber, text-pos, text-neg, text-tox, text-neu → unchanged    */
-
-/* ── Component classes ──────────────────────────────────────────────────── */
 
 @layer components {
   .card {
@@ -74,31 +58,23 @@
     border: 1px solid var(--color-border);
     @apply rounded-xl p-5;
   }
-
   .input-field {
     width: 100%;
     background-color: var(--color-base);
     border: 1px solid var(--color-border);
     color: var(--color-text);
-    @apply rounded-lg px-4 py-3 font-mono text-sm
-           focus:outline-none focus:ring-1 focus:ring-amber/30
-           transition-all duration-200;
+    @apply rounded-lg px-4 py-3 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-amber/30 transition-all duration-200;
   }
   .input-field::placeholder { color: var(--color-muted); }
   .input-field:focus { border-color: #F59E0B; }
-
   .btn-primary {
-    @apply bg-amber text-gray-950 font-display font-bold px-6 py-3 rounded-lg
-           hover:bg-amber-glow active:scale-95 transition-all duration-150
-           disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply bg-amber text-gray-950 font-display font-bold px-6 py-3 rounded-lg hover:bg-amber-glow active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
   }
-
   .label {
     color: var(--color-muted);
     @apply text-xs font-mono uppercase tracking-widest;
   }
-
-  .pill-pos { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pos/10  text-pos  text-xs font-mono; }
-  .pill-neg { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neg/10  text-neg  text-xs font-mono; }
-  .pill-neu { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neu/10  text-neu  text-xs font-mono; }
+  .pill-pos { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pos/10 text-pos text-xs font-mono; }
+  .pill-neg { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neg/10 text-neg text-xs font-mono; }
+  .pill-neu { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neu/10 text-neu text-xs font-mono; }
 }

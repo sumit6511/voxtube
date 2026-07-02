@@ -44,45 +44,33 @@ export interface ChatResponse {
   answer:  string
   sources: { id: string; text: string; score: number }[]
 }
-
-export interface Entity {
-  text:      string
-  category:  'Person' | 'Organization' | 'Location' | 'Miscellaneous'
-  count:     number
-  sentiment: string
-}
-
-export interface NerResponse {
-  entities:        Entity[]
-  total_processed: number
-  total_skipped:   number
-  model_available: boolean
-}
-
 export interface MetricsResult {
-  accuracy:         number
-  precision:        number
-  recall:           number
-  f1:               number
+  accuracy: number; precision: number; recall: number; f1: number
   confusion_matrix: number[][]
 }
-
 export interface EvaluationResponse {
-  total_samples:      number
-  label_distribution: Record<string, number>
-  xlm_roberta:        MetricsResult | null
-  vader:              MetricsResult
-  note?:              string | null
+  total_samples: number; label_distribution: Record<string, number>
+  xlm_roberta: MetricsResult | null; vader: MetricsResult; note?: string | null
 }
-
 export interface JobSummary {
-  id:            string
-  youtube_url:   string
-  video_title?:  string | null
-  status:        string
-  progress:      number
-  comment_count: number
-  created_at?:   string | null
+  id: string; youtube_url: string; video_title?: string | null
+  status: string; progress: number; comment_count: number
+  created_at?: string | null
+}
+export interface Entity {
+  text: string; category: 'Person' | 'Organization' | 'Location' | 'Miscellaneous'
+  count: number; sentiment: string
+}
+export interface NerResponse {
+  entities: Entity[]; total_processed: number
+  total_skipped: number; model_available: boolean
+}
+export interface ScatterPoint {
+  x: number; y: number; sentiment: string
+  lang: string; text: string; is_toxic: number
+}
+export interface UmapResponse {
+  points: ScatterPoint[]; method: string; total: number
 }
 
 // ── Calls ─────────────────────────────────────────────────────────────────────
@@ -112,9 +100,15 @@ export const api = {
   jobs: () =>
     request<{ jobs: JobSummary[]; total: number }>('/jobs'),
 
+  deleteJob: (jobId: string) =>
+    request<{ deleted: string }>(`/jobs/${jobId}`, { method: 'DELETE' }),
+
   ollamaModels: () =>
     request<{ models: string[]; default: string; error: string | null }>('/ollama/models'),
 
   ner: (jobId: string) =>
     request<NerResponse>(`/ner/${jobId}`),
+
+  umap: (jobId: string) =>
+    request<UmapResponse>(`/umap/${jobId}`),
 }

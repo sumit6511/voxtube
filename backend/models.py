@@ -17,15 +17,16 @@ class Job(Base):
     youtube_url   = Column(String, nullable=False)
     video_id      = Column(String, nullable=True)
     video_title   = Column(String, nullable=True)
-    # pending → fetching → preprocessing → analyzing → toxicity → building_topics → building_rag → done | failed
     status        = Column(String, default="pending")
-    progress      = Column(Integer, default=0)        # 0-100
+    progress      = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
     comment_count = Column(Integer, default=0)
-    # Video metadata (fetched from YouTube Data API)
+
+    # Video metadata
     view_count    = Column(Integer, nullable=True)
     like_count    = Column(Integer, nullable=True)
     channel_title = Column(String,  nullable=True)
+
     created_at    = Column(DateTime, default=datetime.utcnow)
     updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -41,28 +42,20 @@ class Comment(Base):
     original_text = Column(Text, nullable=False)
     clean_text    = Column(Text, nullable=True)
 
-    # XLM-RoBERTa
-    sentiment_label = Column(String, nullable=True)   # positive / neutral / negative
-    sentiment_score = Column(Float,  nullable=True)   # confidence
+    sentiment_label = Column(String, nullable=True)
+    sentiment_score = Column(Float,  nullable=True)
 
-    # VADER baseline
     vader_label    = Column(String, nullable=True)
     vader_compound = Column(Float,  nullable=True)
 
-    # ToxicBERT
-    is_toxic      = Column(Integer, default=0)        # 0 or 1
-    toxicity_json = Column(Text, nullable=True)       # JSON: {toxic, severe_toxic, ...}
+    is_toxic      = Column(Integer, default=0)
+    toxicity_json = Column(Text, nullable=True)
 
-    # BERTopic
-    topic_id = Column(Integer, nullable=True)         # -1 = outlier
+    topic_id = Column(Integer, nullable=True)
+    lang     = Column(String, nullable=True)
 
-    # Language detection
-    lang = Column(String, nullable=True)              # 'nepali' | 'english' | 'neplish'
-
-    # Timestamp
-    published_at = Column(DateTime, nullable=True)    # when the comment was posted
-
-    created_at = Column(DateTime, default=datetime.utcnow)
+    published_at = Column(DateTime, nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
 
     job = relationship("Job", back_populates="comments")
 
@@ -72,13 +65,13 @@ class Topic(Base):
 
     id       = Column(String,  primary_key=True, default=_uuid)
     job_id   = Column(String,  ForeignKey("jobs.id"), nullable=False)
-    topic_id = Column(Integer, nullable=False)         # BERTopic topic number
+    topic_id = Column(Integer, nullable=False)
     label    = Column(String,  nullable=True)
-    keywords_json = Column(Text, nullable=True)        # JSON list of top keywords
+    keywords_json = Column(Text, nullable=True)
 
-    comment_count    = Column(Integer, default=0)
-    positive_count   = Column(Integer, default=0)
-    neutral_count    = Column(Integer, default=0)
-    negative_count   = Column(Integer, default=0)
+    comment_count  = Column(Integer, default=0)
+    positive_count = Column(Integer, default=0)
+    neutral_count  = Column(Integer, default=0)
+    negative_count = Column(Integer, default=0)
 
     job = relationship("Job", back_populates="topics")

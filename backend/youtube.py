@@ -7,26 +7,19 @@ from googleapiclient.errors import HttpError
 
 load_dotenv()
 
-
-# ── Video ID extraction ───────────────────────────────────────────────────────
-
 _URL_PATTERNS = [
-    r"(?:v=)([a-zA-Z0-9_-]{11})",           # youtube.com/watch?v=ID
-    r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",   # youtu.be/ID
-    r"(?:shorts/)([a-zA-Z0-9_-]{11})",      # youtube.com/shorts/ID
-    r"(?:embed/)([a-zA-Z0-9_-]{11})",       # youtube.com/embed/ID
+    r"(?:v=)([a-zA-Z0-9_-]{11})",
+    r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
+    r"(?:shorts/)([a-zA-Z0-9_-]{11})",
+    r"(?:embed/)([a-zA-Z0-9_-]{11})",
 ]
 
 def extract_video_id(url: str) -> Optional[str]:
-    """Return the 11-char video ID from any common YouTube URL, or None."""
     for pattern in _URL_PATTERNS:
         match = re.search(pattern, url)
-        if match:
-            return match.group(1)
+        if match: return match.group(1)
     return None
 
-
-# ── API helpers ───────────────────────────────────────────────────────────────
 
 def _build_client():
     api_key = os.getenv("YOUTUBE_API_KEY")
@@ -36,32 +29,17 @@ def _build_client():
 
 
 def _get_video_metadata(client, video_id: str) -> dict:
-    """
-    Fetch video title, channel name, and public statistics.
-
-    Returns:
-        {
-            "title":         str,
-            "channel_title": str | None,
-            "view_count":    int | None,
-            "like_count":    int | None,
-        }
-    """
-    response = client.videos().list(
-        part="snippet,statistics",
-        id=video_id,
-    ).execute()
-
+    response = client.videos().list(part="snippet,statistics", id=video_id).execute()
     items = response.get("items", [])
     if not items:
         return {"title": "Unknown Video", "channel_title": None,
                 "view_count": None, "like_count": None}
 
-    snippet    = items[0].get("snippet",    {})
+    snippet    = items[0].get("snippet", {})
     statistics = items[0].get("statistics", {})
 
     def _int(val):
-        try:    return int(val)
+        try: return int(val)
         except: return None
 
     return {
@@ -72,30 +50,7 @@ def _get_video_metadata(client, video_id: str) -> dict:
     }
 
 
-# ── Main fetch function ───────────────────────────────────────────────────────
-
 def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
-    """
-    Fetch top-level comments and their inline replies from a YouTube video.
-
-    Args:
-        youtube_url:  Any valid YouTube URL format.
-        max_comments: Maximum number of comments to collect (default 200).
-                      This counts BOTH top-level comments and replies.
-
-    Returns:
-        {
-            "video_id":    str,
-            "video_title": str,
-            "comments":    [
-                {"text": str, "published_at": str | None}
-            ]
-        }
-
-    Raises:
-        ValueError: Bad URL, comments disabled, or missing API key.
-        HttpError:  Unhandled YouTube API error.
-    """
     video_id = extract_video_id(youtube_url)
     if not video_id:
         raise ValueError(f"Could not extract a video ID from: {youtube_url}")
@@ -103,27 +58,18 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
     client = _build_client()
     meta   = _get_video_metadata(client, video_id)
 
-    comments       = []
+    comments        = []
     next_page_token = None
 
     while len(comments) < max_comments:
-        batch = min(100, max_comments - len(comments))  # API hard-cap is 100
-
+        batch = min(100, max_comments - len(comments))
         try:
             response = client.commentThreads().list(
-                part="snippet",
-                videoId=video_id,
-                maxResults=batch,
-                pageToken=next_page_token,
-                textFormat="plainText",
-                order="relevance",
+                part="snippet", videoId=video_id, maxResults=batch,
+                pageToken=next_page_token, textFormat="plainText", order="relevance",
             ).execute()
-
         except HttpError as e:
-            reason = ""
-            if e.error_details:
-                reason = e.error_details[0].get("reason", "")
-
+            reason = e.error_details[0].get("reason", "") if e.error_details else ""
             if e.status_code == 403:
                 if reason == "commentsDisabled":
                     raise ValueError("Comments are disabled for this video.")
@@ -137,19 +83,18 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
         for item in response.get("items", []):
             snippet = item["snippet"]["topLevelComment"]["snippet"]
             text    = snippet["textDisplay"]
-            pub     = snippet.get("publishedAt")          # ISO 8601 string or None
+            pub     = snippet.get("publishedAt")
             if text.strip():
                 comments.append({"text": text, "published_at": pub})
 
         next_page_token = response.get("nextPageToken")
-        if not next_page_token:
-            break                       # no more pages available
+        if not next_page_token: break
 
     return {
-        "video_id":     video_id,
-        "video_title":  meta["title"],
-        "channel_title":meta["channel_title"],
-        "view_count":   meta["view_count"],
-        "like_count":   meta["like_count"],
-        "comments":     comments,
+        "video_id":      video_id,
+        "video_title":   meta["title"],
+        "channel_title": meta["channel_title"],
+        "view_count":    meta["view_count"],
+        "like_count":    meta["like_count"],
+        "comments":      comments,
     }

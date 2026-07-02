@@ -13,9 +13,7 @@ export default function ThemeToggle({ className = '' }: { className?: string }) 
                   text-gray-400 hover:text-amber hover:border-amber/40
                   transition-all duration-200 ${className}`}
     >
-      {isDark
-        ? <Sun  size={15} />
-        : <Moon size={15} />}
+      {isDark ? <Sun size={15} /> : <Moon size={15} />}
     </button>
   )
 }

@@ -3,14 +3,10 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# == Requests ====================================================================
-
 class AnalyzeRequest(BaseModel):
     url: str
-    max_comments: int = 200   # how many comments to fetch
+    max_comments: int = 200
 
-
-# == Responses ====================================================================
 
 class AnalyzeResponse(BaseModel):
     job_id: str
@@ -35,10 +31,10 @@ class CommentOut(BaseModel):
     vader_label:     Optional[str]
     vader_compound:  Optional[float]
     is_toxic:        int
-    toxicity_json:   Optional[str]   # raw JSON string, frontend parses it
+    toxicity_json:   Optional[str]
     topic_id:        Optional[int]
-    lang:            Optional[str]      = None  # 'nepali' | 'english' | 'neplish'
-    published_at:    Optional[datetime] = None  # when the comment was posted
+    lang:            Optional[str]      = None
+    published_at:    Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -73,11 +69,9 @@ class ResultsResponse(BaseModel):
     comments:          List[CommentOut]
 
 
-# == RAG chat ====================================================================
-
 class ChatRequest(BaseModel):
     question: str
-    model:    Optional[str] = None   # override OLLAMA_MODEL env var if set
+    model:    Optional[str] = None
 
 
 class SourceComment(BaseModel):
@@ -91,14 +85,12 @@ class ChatResponse(BaseModel):
     sources: List[SourceComment]
 
 
-# == Evaluation ====================================================================
-
 class MetricsResult(BaseModel):
     accuracy:         float
     precision:        float
     recall:           float
     f1:               float
-    confusion_matrix: List[List[int]]   # 3x3  [positive, neutral, negative]
+    confusion_matrix: List[List[int]]
 
 
 class EvaluationResponse(BaseModel):
@@ -108,8 +100,6 @@ class EvaluationResponse(BaseModel):
     vader:              MetricsResult
     note:               Optional[str] = None
 
-
-# == Job history ====================================================================
 
 class JobSummary(BaseModel):
     id:            str
@@ -126,4 +116,3 @@ class JobSummary(BaseModel):
 class JobListResponse(BaseModel):
     jobs:  List[JobSummary]
     total: int
-

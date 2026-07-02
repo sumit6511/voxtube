@@ -4,6 +4,7 @@ import Progress  from './pages/Progress'
 import Dashboard from './pages/Dashboard'
 import Evaluate  from './pages/Evaluate'
 import History   from './pages/History'
+import ToastContainer from './components/Toast'
 
 export default function App() {
   return (
@@ -16,6 +17,8 @@ export default function App() {
         <Route path="/history"           element={<History />} />
         <Route path="*"                  element={<Navigate to="/" replace />} />
       </Routes>
+      {/* Global toast layer — sits above everything */}
+      <ToastContainer />
     </BrowserRouter>
   )
 }

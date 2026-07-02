@@ -5,7 +5,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./voxtube.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # required for SQLite
+    connect_args={"check_same_thread": False}
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -16,10 +16,7 @@ class Base(DeclarativeBase):
 
 
 def run_migrations(engine):
-    """
-    Add new columns that didn't exist in older DB versions.
-    Safe to run on every startup — silently skips columns that already exist.
-    """
+    """Add new columns that didn't exist in older DB versions."""
     from sqlalchemy import text
     migrations = [
         "ALTER TABLE comments ADD COLUMN lang VARCHAR",
@@ -34,7 +31,7 @@ def run_migrations(engine):
                 conn.execute(text(stmt))
                 conn.commit()
             except Exception:
-                pass   # column already exists — ignore
+                pass
 
 
 def get_db():
