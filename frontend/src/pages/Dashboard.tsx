@@ -45,6 +45,16 @@ export default function Dashboard() {
   const [error,   setError]   = useState('')
   const [tab,     setTab]     = useState<Tab>('overview')
 
+  // Tabs are kept mounted (just hidden) once visited, so switching away and
+  // back doesn't unmount EntitiesPanel / ScatterPlot / ChatPanel etc. and
+  // wipe out their already-fetched data or conversation history.
+  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(['overview']))
+
+  function switchTab(id: Tab) {
+    setTab(id)
+    setVisitedTabs(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }
+
   useEffect(() => {
     if (!jobId || results) return
     api.results(jobId)
@@ -161,7 +171,7 @@ export default function Dashboard() {
       {/* ── Tab bar ────────────────────────────────────────────────── */}
       <div className="flex mb-6 border-b border-base-border overflow-x-auto justify-center">
         {TABS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)}
+          <button key={id} onClick={() => switchTab(id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-body font-medium
                         border-b-2 -mb-px whitespace-nowrap transition-all
               ${tab === id
@@ -174,8 +184,12 @@ export default function Dashboard() {
       </div>
 
       {/* ── Tab content ────────────────────────────────────────────── */}
-      {tab === 'overview' && (
-        <div className="space-y-4">
+      {/* Each tab, once visited, stays mounted in the DOM (display:none when
+          inactive) so switching tabs never destroys component state — this
+          is what keeps Entities/Scatter results and Chat history alive. */}
+
+      {visitedTabs.has('overview') && (
+        <div style={{ display: tab === 'overview' ? undefined : 'none' }} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ChartCard title="Sentiment distribution" filename="sentiment-distribution">
               <SentimentChart data={ss} />
@@ -201,24 +215,34 @@ export default function Dashboard() {
         </div>
       )}
 
-      {tab === 'comments' && (
-        <CommentsList comments={comments} topics={topics} />
+      {visitedTabs.has('comments') && (
+        <div style={{ display: tab === 'comments' ? undefined : 'none' }}>
+          <CommentsList comments={comments} topics={topics} />
+        </div>
       )}
 
-      {tab === 'toxicity' && (
-        <ToxicityPanel comments={comments} />
+      {visitedTabs.has('toxicity') && (
+        <div style={{ display: tab === 'toxicity' ? undefined : 'none' }}>
+          <ToxicityPanel comments={comments} />
+        </div>
       )}
 
-      {tab === 'entities' && (
-        <EntitiesPanel jobId={jobId!} />
+      {visitedTabs.has('entities') && (
+        <div style={{ display: tab === 'entities' ? undefined : 'none' }}>
+          <EntitiesPanel jobId={jobId!} />
+        </div>
       )}
 
-      {tab === 'scatter' && (
-        <ScatterPlot jobId={jobId!} />
+      {visitedTabs.has('scatter') && (
+        <div style={{ display: tab === 'scatter' ? undefined : 'none' }}>
+          <ScatterPlot jobId={jobId!} />
+        </div>
       )}
 
-      {tab === 'chat' && (
-        <ChatPanel jobId={jobId!} />
+      {visitedTabs.has('chat') && (
+        <div style={{ display: tab === 'chat' ? undefined : 'none' }}>
+          <ChatPanel jobId={jobId!} />
+        </div>
       )}
 
     </div>
