@@ -1,9 +1,19 @@
-import { useState, useMemo } from 'react'
-import { ArrowUpDown } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { ArrowUpDown, X } from 'lucide-react'
 import type { Comment, Topic } from '../api'
 import Dropdown from './Dropdown'
 
-interface Props { comments: Comment[]; topics: Topic[] }
+export interface FilterRequest {
+  topicId?: number
+  search?:  string
+  nonce:    number   // bump this to re-apply the same request (e.g. same topic clicked twice)
+}
+
+interface Props {
+  comments: Comment[]
+  topics: Topic[]
+  filterRequest?: FilterRequest | null
+}
 
 const PAGE_SIZE = 20
 
@@ -40,26 +50,46 @@ function sortComments(comments: Comment[], key: SortKey): Comment[] {
   })
 }
 
-export default function CommentsList({ comments, topics }: Props) {
+export default function CommentsList({ comments, topics, filterRequest }: Props) {
   const [page,        setPage]        = useState(0)
   const [sentFilter,  setSentFilter]  = useState('all')
   const [toxicOnly,   setToxicOnly]   = useState(false)
   const [search,      setSearch]      = useState('')
   const [sortKey,     setSortKey]     = useState<SortKey>('default')
+  const [topicFilter, setTopicFilter] = useState<number | null>(null)
 
   const topicLabel = Object.fromEntries(
     topics.map(t => [t.topic_id, t.label.split(' | ')[0]])
   )
 
+  // Apply an incoming drill-down request (topic bar click, entity click).
+  // Keyed on `nonce` so clicking the same topic/entity twice still re-applies
+  // (e.g. if the person had since changed filters manually).
+  useEffect(() => {
+    if (!filterRequest) return
+    if (filterRequest.topicId !== undefined) {
+      setTopicFilter(filterRequest.topicId)
+      setSearch('')
+    } else if (filterRequest.search !== undefined) {
+      setSearch(filterRequest.search)
+      setTopicFilter(null)
+    }
+    setSentFilter('all')
+    setToxicOnly(false)
+    setPage(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRequest?.nonce])
+
   const filtered = useMemo(() => {
     const f = comments.filter(c => {
       if (sentFilter !== 'all' && c.sentiment_label !== sentFilter) return false
       if (toxicOnly && !c.is_toxic) return false
+      if (topicFilter !== null && c.topic_id !== topicFilter) return false
       if (search && !c.original_text.toLowerCase().includes(search.toLowerCase())) return false
       return true
     })
     return sortComments(f, sortKey)
-  }, [comments, sentFilter, toxicOnly, search, sortKey])
+  }, [comments, sentFilter, toxicOnly, search, sortKey, topicFilter])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const visible    = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -86,6 +116,17 @@ export default function CommentsList({ comments, topics }: Props) {
           icon={<ArrowUpDown size={12} className="text-gray-500 flex-shrink-0" />}
         />
       </div>
+
+      {/* ── Active drill-down filter chip ─────────────────────────────── */}
+      {topicFilter !== null && (
+        <div className="flex items-center gap-2 text-xs font-mono text-amber
+                        bg-amber/10 border border-amber/25 rounded-lg px-3 py-1.5 w-fit">
+          Filtered by topic: {topicLabel[topicFilter] ?? `#${topicFilter}`}
+          <button onClick={() => setTopicFilter(null)} className="hover:text-amber-glow transition-colors">
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       {/* ── Row 2: sentiment + toxic filters ────────────────────────── */}
       <div className="flex flex-wrap gap-2">

@@ -54,11 +54,14 @@ def compute_2d_projection(job_id: str, comments_db: list) -> dict:
         {
             "points": [
                 {
+                    "id":        str,     Comment.id — lets the frontend look up
+                                          the FULL comment (this "text" field is
+                                          truncated to keep the payload small)
                     "x":        float,
                     "y":        float,
                     "sentiment": str,     "positive"|"neutral"|"negative"
                     "lang":      str,     "nepali"|"english"|"neplish"
-                    "text":      str,     first 60 chars of original_text
+                    "text":      str,     first 70 chars of original_text
                     "is_toxic":  int,     0 or 1
                 }
             ],
@@ -106,6 +109,7 @@ def compute_2d_projection(job_id: str, comments_db: list) -> dict:
     for i, c in enumerate(db_slice):
         x, y = float(coords_2d[i, 0]), float(coords_2d[i, 1])
         points.append({
+            "id":        c.id,
             "x":        round(x, 4),
             "y":        round(y, 4),
             "sentiment": c.sentiment_label or "neutral",

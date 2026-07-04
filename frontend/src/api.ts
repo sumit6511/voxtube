@@ -66,7 +66,7 @@ export interface NerResponse {
   total_skipped: number; model_available: boolean
 }
 export interface ScatterPoint {
-  x: number; y: number; sentiment: string
+  id: string; x: number; y: number; sentiment: string
   lang: string; text: string; is_toxic: number
 }
 export interface UmapResponse {

@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Loader2, Search, AlertTriangle } from 'lucide-react'
+import { Loader2, Search, AlertTriangle, ArrowRight } from 'lucide-react'
 import { api } from '../api'
 import type { Entity, NerResponse } from '../api'
 
-interface Props { jobId: string }
+interface Props {
+  jobId: string
+  onEntityClick?: (text: string) => void
+}
 
 const CATEGORY_CONFIG: Record<string, { color: string; bg: string; emoji: string }> = {
   Person:        { color: 'text-pos',      bg: 'bg-pos/10',       emoji: '👤' },
@@ -16,23 +19,36 @@ const SENT_COLOR: Record<string, string> = {
   positive: 'text-pos', negative: 'text-neg', neutral: 'text-gray-500',
 }
 
-function EntityBubble({ entity }: { entity: Entity }) {
+function EntityBubble({ entity, onClick }: { entity: Entity; onClick?: () => void }) {
   const cfg = CATEGORY_CONFIG[entity.category] ?? CATEGORY_CONFIG.Miscellaneous
+  const clickable = !!onClick
+
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-base-border ${cfg.bg}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={`group flex items-center gap-2 px-3 py-2 rounded-lg border border-base-border
+                  text-left w-full ${cfg.bg}
+                  ${clickable ? 'cursor-pointer hover:border-amber/40 transition-colors' : 'cursor-default'}`}
+    >
       <span className="text-base">{cfg.emoji}</span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className={`text-sm font-body font-medium ${cfg.color} truncate`}>{entity.text}</p>
         <p className="text-xs font-mono text-gray-600">
           {entity.category} · <span className={SENT_COLOR[entity.sentiment] ?? 'text-gray-500'}>{entity.sentiment}</span>
         </p>
       </div>
-      <span className="ml-auto font-mono text-xs text-gray-600 flex-shrink-0">×{entity.count}</span>
-    </div>
+      <span className="font-mono text-xs text-gray-600 flex-shrink-0">×{entity.count}</span>
+      {clickable && (
+        <ArrowRight size={12} className="text-gray-700 group-hover:text-amber
+                                         flex-shrink-0 transition-colors" />
+      )}
+    </button>
   )
 }
 
-export default function EntitiesPanel({ jobId }: Props) {
+export default function EntitiesPanel({ jobId, onEntityClick }: Props) {
   const [data, setData] = useState<NerResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -132,9 +148,22 @@ export default function EntitiesPanel({ jobId }: Props) {
       {filtered.length === 0 ? (
         <p className="text-gray-600 font-mono text-sm py-8 text-center">No entities found with ≥2 mentions.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {filtered.map((e, i) => <EntityBubble key={i} entity={e} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {filtered.map((e, i) => (
+              <EntityBubble
+                key={i}
+                entity={e}
+                onClick={onEntityClick ? () => onEntityClick(e.text) : undefined}
+              />
+            ))}
+          </div>
+          {onEntityClick && (
+            <p className="text-xs font-mono text-gray-700 text-center">
+              Click an entity to view its comments →
+            </p>
+          )}
+        </>
       )}
 
       <p className="text-xs font-mono text-gray-700">

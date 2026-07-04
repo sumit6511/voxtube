@@ -10,6 +10,7 @@ import type { ResultsResponse } from '../api'
 import SentimentChart    from '../components/SentimentChart'
 import TopicsChart       from '../components/TopicsChart'
 import CommentsList      from '../components/CommentsList'
+import type { FilterRequest } from '../components/CommentsList'
 import ToxicityPanel     from '../components/ToxicityPanel'
 import ChatPanel         from '../components/ChatPanel'
 import WordCloud         from '../components/WordCloud'
@@ -53,6 +54,22 @@ export default function Dashboard() {
   function switchTab(id: Tab) {
     setTab(id)
     setVisitedTabs(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+  }
+
+  // Cross-tab drill-down: a click in TopicsChart or EntitiesPanel jumps to
+  // the Comments tab pre-filtered. `nonce` forces CommentsList to re-apply
+  // even if the same topic/entity is clicked again after the user changed
+  // filters manually in between.
+  const [commentsFilterRequest, setCommentsFilterRequest] = useState<FilterRequest | null>(null)
+
+  function handleTopicClick(topicId: number) {
+    setCommentsFilterRequest({ topicId, nonce: Date.now() })
+    switchTab('comments')
+  }
+
+  function handleEntityClick(entityText: string) {
+    setCommentsFilterRequest({ search: entityText, nonce: Date.now() })
+    switchTab('comments')
   }
 
   useEffect(() => {
@@ -203,7 +220,7 @@ export default function Dashboard() {
           </ChartCard>
           <ChartCard title="Per-topic sentiment" filename="topics-sentiment">
             {topics.length > 0
-              ? <TopicsChart topics={topics} />
+              ? <TopicsChart topics={topics} onTopicClick={handleTopicClick} />
               : <div className="h-48 flex items-center justify-center">
                   <p className="text-gray-600 font-mono text-sm">No topics discovered</p>
                 </div>
@@ -217,7 +234,7 @@ export default function Dashboard() {
 
       {visitedTabs.has('comments') && (
         <div style={{ display: tab === 'comments' ? undefined : 'none' }}>
-          <CommentsList comments={comments} topics={topics} />
+          <CommentsList comments={comments} topics={topics} filterRequest={commentsFilterRequest} />
         </div>
       )}
 
@@ -229,13 +246,13 @@ export default function Dashboard() {
 
       {visitedTabs.has('entities') && (
         <div style={{ display: tab === 'entities' ? undefined : 'none' }}>
-          <EntitiesPanel jobId={jobId!} />
+          <EntitiesPanel jobId={jobId!} onEntityClick={handleEntityClick} />
         </div>
       )}
 
       {visitedTabs.has('scatter') && (
         <div style={{ display: tab === 'scatter' ? undefined : 'none' }}>
-          <ScatterPlot jobId={jobId!} />
+          <ScatterPlot jobId={jobId!} comments={comments} topics={topics} />
         </div>
       )}
 
