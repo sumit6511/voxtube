@@ -1,5 +1,7 @@
 import os
 import re
+import socket
+import time
 from typing import Optional
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
@@ -28,8 +30,49 @@ def _build_client():
     return build("youtube", "v3", developerKey=api_key)
 
 
+# ── Retry logic for transient failures ────────────────────────────────────────
+# Retries server errors (500/502/503/504) and network blips with exponential
+# backoff (1s, 2s, 4s). Does NOT retry permanent failures — quota exceeded,
+# comments disabled, video not found — since retrying those can't help and
+# would just burn quota/time before the caller sees the real error.
+
+_RETRYABLE_STATUS = {500, 502, 503, 504}
+_MAX_RETRIES       = 3
+_BASE_DELAY        = 1.0   # seconds
+
+
+def _execute_with_retry(request):
+    """Execute a googleapiclient request, retrying transient failures only."""
+    last_exception: Exception | None = None
+
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return request.execute()
+
+        except HttpError as e:
+            if e.status_code in _RETRYABLE_STATUS and attempt < _MAX_RETRIES - 1:
+                last_exception = e
+                time.sleep(_BASE_DELAY * (2 ** attempt))
+                continue
+            raise   # permanent error, or retries exhausted — let the caller handle it
+
+        except (socket.timeout, ConnectionError, TimeoutError) as e:
+            if attempt < _MAX_RETRIES - 1:
+                last_exception = e
+                time.sleep(_BASE_DELAY * (2 ** attempt))
+                continue
+            raise ValueError(
+                f"Could not reach the YouTube API after {_MAX_RETRIES} attempts "
+                f"(network error: {e}). Check your connection and try again."
+            )
+
+    if last_exception:
+        raise last_exception   # pragma: no cover — unreachable in practice
+
+
 def _get_video_metadata(client, video_id: str) -> dict:
-    response = client.videos().list(part="snippet,statistics", id=video_id).execute()
+    request  = client.videos().list(part="snippet,statistics", id=video_id)
+    response = _execute_with_retry(request)
     items = response.get("items", [])
     if not items:
         return {"title": "Unknown Video", "channel_title": None,
@@ -64,10 +107,11 @@ def fetch_comments(youtube_url: str, max_comments: int = 200) -> dict:
     while len(comments) < max_comments:
         batch = min(100, max_comments - len(comments))
         try:
-            response = client.commentThreads().list(
+            request = client.commentThreads().list(
                 part="snippet", videoId=video_id, maxResults=batch,
                 pageToken=next_page_token, textFormat="plainText", order="relevance",
-            ).execute()
+            )
+            response = _execute_with_retry(request)
         except HttpError as e:
             reason = e.error_details[0].get("reason", "") if e.error_details else ""
             if e.status_code == 403:
