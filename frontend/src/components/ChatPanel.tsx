@@ -4,7 +4,10 @@ import { api } from '../api'
 import Dropdown from './Dropdown'
 
 interface Source { id: string; text: string; score: number }
-interface Message { role: 'user' | 'assistant'; text: string; sources?: Source[]; error?: boolean }
+interface Message {
+  role: 'user' | 'assistant'; text: string
+  sources?: Source[]; error?: boolean; streaming?: boolean
+}
 
 const SUGGESTIONS = [
   'What do viewers think about this video overall?',
@@ -85,24 +88,58 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
   const [loading, setLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Starts false; the effect below flips it true on mount. This is the
+  // StrictMode-safe pattern: React's dev-mode mount→unmount→remount cycle
+  // runs the cleanup (sets false) then re-runs the effect body (sets true
+  // again). The previous version only ever set it to true via useRef's
+  // initial value and never reset it inside the effect itself, so after
+  // StrictMode's simulated unmount it was permanently stuck at false —
+  // silently no-oping every state update guarded by it (onDone, onError),
+  // which is why the chat bubble never stopped "streaming".
+  const isMountedRef = useRef(false)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   async function send(question: string) {
     const q = question.trim()
     if (!q || loading) return
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', text: q }])
+
+    // Index the assistant placeholder will land at (user msg, then assistant msg)
+    const assistantIndex = messages.length + 1
+
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', text: q },
+      { role: 'assistant', text: '', streaming: true },
+    ])
     setLoading(true)
-    try {
-      const res = await api.chat(jobId, q, selectedModel || undefined)
-      setMessages(prev => [...prev, { role: 'assistant', text: res.answer, sources: res.sources }])
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong.'
-      setMessages(prev => [...prev, { role: 'assistant', text: msg, error: true }])
-    } finally {
-      setLoading(false)
+
+    function updateAssistant(patch: Partial<Message>) {
+      if (!isMountedRef.current) return
+      setMessages(prev => prev.map((m, i) => (i === assistantIndex ? { ...m, ...patch } : m)))
     }
+
+    await api.chatStream(jobId, q, selectedModel || undefined, {
+      onSources: (sources) => updateAssistant({ sources }),
+      onToken:   (text) => {
+        if (!isMountedRef.current) return
+        setMessages(prev => prev.map((m, i) =>
+          i === assistantIndex ? { ...m, text: m.text + text } : m))
+      },
+      onError:   (message) => {
+        updateAssistant({ text: message, error: true, streaming: false })
+        if (isMountedRef.current) setLoading(false)
+      },
+      onDone: () => {
+        updateAssistant({ streaming: false })
+        if (isMountedRef.current) setLoading(false)
+      },
+    })
   }
 
   return (
@@ -130,22 +167,18 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
             <div className={`max-w-[88%] rounded-xl px-4 py-3 text-sm font-body leading-relaxed
               ${msg.role === 'user' ? 'bg-amber/10 border border-amber/20 text-gray-200'
                 : msg.error ? 'bg-neg/5 border border-neg/20 text-neg' : 'card text-gray-300'}`}>
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+              <p className="whitespace-pre-wrap">
+                {msg.text}
+                {msg.streaming && (
+                  <span className="inline-block w-1.5 h-4 bg-amber/70 ml-0.5 -mb-0.5
+                                   animate-pulse-dot align-middle" />
+                )}
+              </p>
               {msg.sources && msg.sources.length > 0 && <SourcesCitation sources={msg.sources} />}
             </div>
           </div>
         ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="card px-4 py-3 flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-amber" />
-              <span className="text-xs font-mono text-gray-500">
-                {selectedModel ? `${selectedModel} thinking…` : 'Thinking…'}
-              </span>
-            </div>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 
@@ -160,7 +193,7 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
       </div>
 
       <p className="text-xs font-mono text-gray-700">
-        Powered by Ollama (local LLM) · Hybrid BM25 + FAISS retrieval
+        Powered by Ollama (local LLM, streaming) · Hybrid BM25 + FAISS retrieval
       </p>
     </div>
   )
