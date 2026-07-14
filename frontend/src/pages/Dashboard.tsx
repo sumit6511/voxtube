@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, BarChart3, List, AlertTriangle,
   MessageSquare, FileSpreadsheet, FileText, Tag, Sparkles,
+  Loader2, Link2, Check,
 } from 'lucide-react'
 import { api, BASE } from '../api'
 import { useStore } from '../store'
+import { pushToast } from '../hooks/useToast'
 import type { ResultsResponse } from '../api'
 import SentimentChart    from '../components/SentimentChart'
 import TopicsChart       from '../components/TopicsChart'
@@ -24,6 +26,12 @@ import { DashboardSkeleton } from '../components/Skeleton'
 
 type Tab = 'overview' | 'comments' | 'toxicity' | 'entities' | 'scatter' | 'chat'
 
+const VALID_TABS: readonly Tab[] = ['overview', 'comments', 'toxicity', 'entities', 'scatter', 'chat']
+
+function isValidTab(v: string | null): v is Tab {
+  return !!v && (VALID_TABS as readonly string[]).includes(v)
+}
+
 const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
   { id: 'overview',  label: 'Overview',  Icon: BarChart3     },
   { id: 'comments',  label: 'Comments',  Icon: List          },
@@ -36,6 +44,7 @@ const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
 export default function Dashboard() {
   const { jobId }     = useParams<{ jobId: string }>()
   const navigate      = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const storeResults  = useStore(s => s.results)
   const setResults    = useStore(s => s.setResults)
 
@@ -44,16 +53,26 @@ export default function Dashboard() {
   )
   const [loading, setLoading] = useState(!results)
   const [error,   setError]   = useState('')
-  const [tab,     setTab]     = useState<Tab>('overview')
+
+  // Active tab is seeded from ?tab= on first load so refreshing the page
+  // (or sharing a link — see handleCopyLink below) reopens the same tab.
+  const [tab, setTab] = useState<Tab>(() =>
+    isValidTab(searchParams.get('tab')) ? (searchParams.get('tab') as Tab) : 'overview'
+  )
 
   // Tabs are kept mounted (just hidden) once visited, so switching away and
   // back doesn't unmount EntitiesPanel / ScatterPlot / ChatPanel etc. and
   // wipe out their already-fetched data or conversation history.
-  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(['overview']))
+  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(() => new Set([tab]))
 
   function switchTab(id: Tab) {
     setTab(id)
     setVisitedTabs(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.set('tab', id)
+      return next
+    }, { replace: true })   // replace, not push — tab clicks shouldn't pile up browser history
   }
 
   // Cross-tab drill-down: a click in TopicsChart or EntitiesPanel jumps to
@@ -70,6 +89,62 @@ export default function Dashboard() {
   function handleEntityClick(entityText: string) {
     setCommentsFilterRequest({ search: entityText, nonce: Date.now() })
     switchTab('comments')
+  }
+
+  // ── Export with loading indicator (Feature 5) ────────────────────────────
+  // Native <a href download> gives no JS-visible progress, so exports use a
+  // manual fetch → blob → temporary anchor instead, enabling a spinner state.
+  const [exporting, setExporting] = useState<{ excel: boolean; pdf: boolean }>({
+    excel: false, pdf: false,
+  })
+
+  function extractFilename(disposition: string | null, fallback: string): string {
+    if (!disposition) return fallback
+    const match = disposition.match(/filename="?([^"]+)"?/)
+    return match ? match[1] : fallback
+  }
+
+  async function handleExport(kind: 'excel' | 'pdf') {
+    setExporting(prev => ({ ...prev, [kind]: true }))
+    try {
+      const res = await fetch(`${BASE}/export/${jobId}/${kind}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Export failed' }))
+        throw new Error(err.detail ?? 'Export failed')
+      }
+      const blob     = await res.blob()
+      const filename = extractFilename(
+        res.headers.get('Content-Disposition'),
+        `voxtube.${kind === 'excel' ? 'xlsx' : 'pdf'}`
+      )
+      const url = URL.createObjectURL(blob)
+      const a   = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      pushToast(`${kind === 'excel' ? 'Excel' : 'PDF'} downloaded`, 'success')
+    } catch (e: unknown) {
+      pushToast(e instanceof Error ? e.message : 'Export failed', 'error')
+    } finally {
+      setExporting(prev => ({ ...prev, [kind]: false }))
+    }
+  }
+
+  // ── Copy link (Feature 7) ─────────────────────────────────────────────────
+  // Copies the current URL as-is, which includes ?tab=... — so the copied
+  // link deep-links straight to whichever tab is active right now.
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      pushToast('Link copied to clipboard', 'success')
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      pushToast('Could not copy link', 'error')
+    }
   }
 
   useEffect(() => {
@@ -156,18 +231,38 @@ export default function Dashboard() {
 
         {/* Actions */}
         <ThemeToggle />
-        <a href={`${BASE}/export/${jobId}/excel`} download
+        <button
+          onClick={handleCopyLink}
+          title="Copy link to this analysis"
           className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
                      hover:text-amber border border-base-border hover:border-amber/40
-                     px-3 py-2 rounded-lg transition-all whitespace-nowrap">
-          <FileSpreadsheet size={14} /> Excel
-        </a>
-        <a href={`${BASE}/export/${jobId}/pdf`} download
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap"
+        >
+          {copied ? <Check size={14} className="text-pos" /> : <Link2 size={14} />}
+          {copied ? 'Copied' : 'Copy Link'}
+        </button>
+        <button
+          onClick={() => handleExport('excel')}
+          disabled={exporting.excel}
           className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
                      hover:text-amber border border-base-border hover:border-amber/40
-                     px-3 py-2 rounded-lg transition-all whitespace-nowrap">
-          <FileText size={14} /> PDF
-        </a>
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap
+                     disabled:opacity-50 disabled:cursor-wait disabled:hover:text-gray-400 disabled:hover:border-base-border"
+        >
+          {exporting.excel ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
+          {exporting.excel ? 'Exporting…' : 'Excel'}
+        </button>
+        <button
+          onClick={() => handleExport('pdf')}
+          disabled={exporting.pdf}
+          className="flex-shrink-0 flex items-center gap-1.5 text-xs font-mono text-gray-400
+                     hover:text-amber border border-base-border hover:border-amber/40
+                     px-3 py-2 rounded-lg transition-all whitespace-nowrap
+                     disabled:opacity-50 disabled:cursor-wait disabled:hover:text-gray-400 disabled:hover:border-base-border"
+        >
+          {exporting.pdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+          {exporting.pdf ? 'Exporting…' : 'PDF'}
+        </button>
       </div>
 
       {/* ── Stats row ──────────────────────────────────────────────── */}
