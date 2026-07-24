@@ -12,7 +12,7 @@ from .schemas import (
     AnalyzeRequest, AnalyzeResponse,
     JobStatusResponse, ResultsResponse,
     CommentOut, TopicOut, SentimentSummary,
-    ChatRequest, ChatResponse, SourceComment,
+    ChatRequest,
     EvaluationResponse, MetricsResult,
     JobSummary, JobListResponse,
 )
@@ -122,7 +122,7 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
         db.commit()
         _set_job(db, job_id, "building_topics", 70)
 
-        from .pipeline.topics import run_topic_modeling, aggregate_topic_sentiments
+        from .pipeline.topics import run_topic_modeling, aggregate_topic_sentiments, label_topics_with_llm
 
         comments_in_db = db.query(Comment).filter(Comment.job_id == job_id).all()
         clean_texts    = [c.clean_text or c.original_text for c in comments_in_db]
@@ -136,8 +136,9 @@ def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
         db.commit()
 
         sentiment_per_topic = aggregate_topic_sentiments(assignments, sent_labels)
+        labeled_topics = label_topics_with_llm(topic_result["topics"])
 
-        for t in topic_result["topics"]:
+        for t in labeled_topics:
             tid  = t["topic_id"]
             sent = sentiment_per_topic.get(
                 tid, {"positive": 0, "neutral": 0, "negative": 0, "count": 0}
@@ -285,20 +286,18 @@ def list_ollama_models():
 
 # ── Chat / RAG ────────────────────────────────────────────────────────────────
 
-@app.post("/chat/{job_id}", response_model=ChatResponse)
+@app.post("/chat/{job_id}")
 def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job: raise HTTPException(status_code=404, detail="Job not found")
     if job.status != "done":
         raise HTTPException(status_code=400, detail=f"Not complete. Status: {job.status}")
-    from .pipeline.rag import query_rag
-    try:
-        result = query_rag(job_id, request.question, model=request.model or None)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    return ChatResponse(
-        answer=result["answer"],
-        sources=[SourceComment(**s) for s in result["sources"]],
+
+    from .pipeline.rag import query_rag_stream
+
+    return StreamingResponse(
+        query_rag_stream(job_id, request.question, model=request.model or None),
+        media_type="application/x-ndjson",
     )
 
 
@@ -380,10 +379,13 @@ def evaluate():
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     xlm = MetricsResult(**result["xlm_roberta"]) if result["xlm_roberta"] else None
+    nepali = MetricsResult(**result["nepali_model"]) if result["nepali_model"] else None
     return EvaluationResponse(
         total_samples=result["total_samples"],
         label_distribution=result["label_distribution"],
         xlm_roberta=xlm,
         vader=MetricsResult(**result["vader"]),
         note=result["note"],
+        nepali_model=nepali,
+        nepali_model_note=result.get("nepali_model_note"),
     )

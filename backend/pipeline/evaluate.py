@@ -33,7 +33,7 @@ def _compute_metrics(y_true: list[str], y_pred: list[str]) -> dict:
 
 def run_evaluation(dataset_path: str = DATASET_PATH) -> dict:
     from .preprocessor import preprocess_batch
-    from .sentiment import analyze_batch
+    from .sentiment import analyze_batch, analyze_batch_nepali_model
 
     texts, true_labels = _load_dataset(dataset_path)
     clean_texts = preprocess_batch(texts)
@@ -51,7 +51,24 @@ def run_evaluation(dataset_path: str = DATASET_PATH) -> dict:
         xlm_metrics = None
         note = "XLM-RoBERTa predictions unavailable - torch may not be installed. VADER metrics shown only."
 
+    # Third comparison point: the Nepali-specific alternative model.
+    # This is a genuine empirical test, not an assumed improvement — the
+    # model's own documentation flags real weaknesses (see sentiment.py).
+    # Runs best-effort: if the model can't load or fails, we simply omit
+    # it from the response rather than failing the whole evaluation.
+    nepali_results = analyze_batch_nepali_model(clean_texts)
+    nepali_preds = [r["label"] if r else None for r in nepali_results]
+    nepali_valid = [p for p in nepali_preds if p is not None]
+    if len(nepali_valid) == len(texts):
+        nepali_metrics = _compute_metrics(true_labels, nepali_preds)
+        nepali_note = None
+    else:
+        nepali_metrics = None
+        nepali_note = ("Nepali-specific model unavailable or failed to load — this comparison "
+                        "is optional and does not affect the main XLM-RoBERTa vs VADER result.")
+
     return {
         "total_samples": len(texts), "label_distribution": label_dist,
         "xlm_roberta": xlm_metrics, "vader": _compute_metrics(true_labels, vader_preds), "note": note,
+        "nepali_model": nepali_metrics, "nepali_model_note": nepali_note,
     }

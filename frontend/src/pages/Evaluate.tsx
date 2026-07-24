@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Loader2, FlaskConical } from 'lucide-react'
 import { api } from '../api'
-import type { EvaluationResponse } from '../api'
+import { EvaluateSkeleton } from '../components/Skeleton'
+import type { EvaluationResponse, MetricsResult } from '../api'
 
 const LABELS = ['Positive', 'Neutral', 'Negative']
 
@@ -56,6 +57,27 @@ function ConfusionMatrix({ matrix, title }: { matrix: number[][]; title: string 
   )
 }
 
+function ModelCard({ title, badge, badgeCls, metrics, highlight }: {
+  title: string; badge: string; badgeCls: string; metrics: MetricsResult; highlight?: boolean
+}) {
+  const items = [
+    { key: 'f1', label: 'F1 Score (Weighted)' }, { key: 'accuracy', label: 'Accuracy' },
+    { key: 'precision', label: 'Precision (Weighted)' }, { key: 'recall', label: 'Recall (Weighted)' },
+  ] as const
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="label">{title}</p>
+        <span className={`text-xs font-mono px-2 py-0.5 rounded-full border ${badgeCls}`}>{badge}</span>
+      </div>
+      {items.map(m => <MetricBar key={m.key} label={m.label} value={metrics[m.key]} highlight={highlight} />)}
+      <p className={`text-xs font-mono pt-1 ${highlight ? 'text-amber' : 'text-gray-500'}`}>
+        F1: {(metrics.f1 * 100).toFixed(1)}% · Acc: {(metrics.accuracy * 100).toFixed(1)}%
+      </p>
+    </div>
+  )
+}
+
 export default function Evaluate() {
   const navigate = useNavigate()
   const [data, setData] = useState<EvaluationResponse | null>(null)
@@ -67,12 +89,12 @@ export default function Evaluate() {
   }, [])
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-3">
-        <div className="w-8 h-8 border-2 border-amber border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-gray-500 font-mono text-sm">Running evaluation on 150 samples…</p>
-        <p className="text-gray-700 font-mono text-xs">First run loads models (~30s)</p>
+    <div className="min-h-screen px-4 py-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-2 mb-6 text-gray-500 font-mono text-sm">
+        <Loader2 size={16} className="animate-spin text-amber" />
+        Running evaluation on 150 samples… (first run loads models, ~30s)
       </div>
+      <EvaluateSkeleton />
     </div>
   )
 
@@ -87,11 +109,7 @@ export default function Evaluate() {
   )
 
   if (!data) return null
-  const { total_samples, label_distribution: dist, xlm_roberta: xlm, vader, note } = data
-  const metrics = [
-    { key: 'f1', label: 'F1 Score (Weighted)' }, { key: 'accuracy', label: 'Accuracy' },
-    { key: 'precision', label: 'Precision (Weighted)' }, { key: 'recall', label: 'Recall (Weighted)' },
-  ] as const
+  const { total_samples, label_distribution: dist, xlm_roberta: xlm, vader, note, nepali_model, nepali_model_note } = data
 
   return (
     <div className="min-h-screen px-4 py-6 max-w-4xl mx-auto">
@@ -101,7 +119,7 @@ export default function Evaluate() {
         </button>
         <div>
           <h1 className="font-display text-xl font-bold" style={{ color: 'var(--color-text)' }}>Model Evaluation</h1>
-          <p className="text-xs font-mono text-gray-600 mt-0.5">XLM-RoBERTa vs VADER — Labeled Neplish Dataset</p>
+          <p className="text-xs font-mono text-gray-600 mt-0.5">Sentiment model comparison — Labeled Neplish Dataset</p>
         </div>
       </div>
 
@@ -126,33 +144,17 @@ export default function Evaluate() {
         ))}
       </div>
 
+      {/* Primary comparison: XLM-RoBERTa (production model) vs VADER (baseline) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="card space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="label">XLM-RoBERTa</p>
-            {xlm && <span className="text-xs font-mono bg-pos/10 text-pos border border-pos/20 px-2 py-0.5 rounded-full">Primary model</span>}
+        {xlm ? (
+          <ModelCard title="XLM-RoBERTa" badge="Primary model" badgeCls="bg-pos/10 text-pos border-pos/20" metrics={xlm} highlight />
+        ) : (
+          <div className="card py-6 text-center">
+            <p className="text-gray-600 font-mono text-sm">Install torch to see XLM-RoBERTa results.</p>
+            <code className="text-xs text-amber mt-2 block">pip install torch --index-url https://download.pytorch.org/whl/cpu</code>
           </div>
-          {xlm ? (
-            <>
-              {metrics.map(m => <MetricBar key={m.key} label={m.label} value={xlm[m.key]} highlight />)}
-              <p className="text-xs font-mono text-amber pt-1">F1: {(xlm.f1 * 100).toFixed(1)}% · Acc: {(xlm.accuracy * 100).toFixed(1)}%</p>
-            </>
-          ) : (
-            <div className="py-6 text-center">
-              <p className="text-gray-600 font-mono text-sm">Install torch to see XLM-RoBERTa results.</p>
-              <code className="text-xs text-amber mt-2 block">pip install torch --index-url https://download.pytorch.org/whl/cpu</code>
-            </div>
-          )}
-        </div>
-
-        <div className="card space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="label">VADER</p>
-            <span className="text-xs font-mono bg-gray-800 text-gray-400 border border-gray-700 px-2 py-0.5 rounded-full">Baseline</span>
-          </div>
-          {metrics.map(m => <MetricBar key={m.key} label={m.label} value={vader[m.key]} />)}
-          <p className="text-xs font-mono text-gray-500 pt-1">F1: {(vader.f1 * 100).toFixed(1)}% · Acc: {(vader.accuracy * 100).toFixed(1)}%</p>
-        </div>
+        )}
+        <ModelCard title="VADER" badge="Baseline" badgeCls="bg-gray-800 text-gray-400 border-gray-700" metrics={vader} />
       </div>
 
       {xlm && (
@@ -170,18 +172,41 @@ export default function Evaluate() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {xlm && (
-          <div className="card overflow-x-auto">
-            <ConfusionMatrix matrix={xlm.confusion_matrix} title="XLM-RoBERTa — Confusion Matrix" />
-          </div>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {xlm && <div className="card overflow-x-auto"><ConfusionMatrix matrix={xlm.confusion_matrix} title="XLM-RoBERTa — Confusion Matrix" /></div>}
         <div className={`card overflow-x-auto ${!xlm ? 'md:col-span-2 max-w-md mx-auto w-full' : ''}`}>
           <ConfusionMatrix matrix={vader.confusion_matrix} title="VADER — Confusion Matrix" />
         </div>
       </div>
 
-      <div className="card mt-4 border-base-border/50">
+      {/* Experimental third comparison: Nepali-specific model */}
+      <div className="flex items-center gap-2 mb-3">
+        <FlaskConical size={14} className="text-gray-500" />
+        <p className="label">Experimental comparison</p>
+      </div>
+      <p className="text-xs font-mono text-gray-600 mb-4 leading-relaxed">
+        A Nepali-specific fine-tuned model, tested here purely for research comparison — it is <span className="text-gray-400">not</span> used
+        in the live pipeline. Its own documentation notes it was trained without a properly represented neutral class and on
+        formal/news-style Nepali text rather than informal code-mixed comments, so a weaker result here doesn't necessarily
+        generalize, and a stronger one would be worth investigating further before adopting.
+      </p>
+
+      {nepali_model ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <ModelCard title="sibendra/nepali-sentiment-analysis" badge="Experimental" badgeCls="bg-amber/10 text-amber border-amber/20" metrics={nepali_model} />
+          <div className="card overflow-x-auto">
+            <ConfusionMatrix matrix={nepali_model.confusion_matrix} title="Nepali Model — Confusion Matrix" />
+          </div>
+        </div>
+      ) : (
+        <div className="card border-base-border/50 mb-4">
+          <p className="text-xs font-mono text-gray-600">
+            {nepali_model_note ?? 'Nepali model comparison unavailable.'}
+          </p>
+        </div>
+      )}
+
+      <div className="card border-base-border/50">
         <p className="text-xs font-mono text-gray-600 leading-relaxed">
           <span className="text-gray-400">Dataset: </span>
           150 manually labeled Neplish YouTube comments (50 positive, 51 neutral, 49 negative) spanning

@@ -99,6 +99,11 @@ class EvaluationResponse(BaseModel):
     xlm_roberta:        Optional[MetricsResult] = None
     vader:              MetricsResult
     note:               Optional[str] = None
+    # Third, optional comparison point — a Nepali-specific sentiment model.
+    # Included for research comparison only; the main pipeline still uses
+    # XLM-RoBERTa (see sentiment.py for why this isn't a blind swap).
+    nepali_model:       Optional[MetricsResult] = None
+    nepali_model_note:  Optional[str] = None
 
 
 class JobSummary(BaseModel):

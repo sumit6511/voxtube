@@ -29,16 +29,85 @@ def preprocess_batch(texts: list[str]) -> list[str]:
     return [clean_comment(t) for t in texts]
 
 
+# ── Romanized Nepali / Neplish dictionary ────────────────────────────────────
+# Expanded from an initial ~50-word list. Informal romanized Nepali has no
+# standard spelling, so most core words appear here in 2-4 common spelling
+# variants (e.g. cha/chha/xa/xha are all the same copula). Organized by
+# grammatical role purely to make the list maintainable — matching itself
+# is a flat set lookup, not order-dependent.
 _NEPALI_WORDS = {
-    'ramro','sanchai','cha','xa','xha','huncha','hunchha','thyo','bhayo','haina','garne','gareko',
-    'garnu','garnuhos','bhanne','lagyo','lagcha','dherai','ali','aile','aaja','hijo','pani','ani',
-    'tara','ho','hola','hajur','dai','didi','bhai','bahini','maile','timle','kasle','kasari','kasto',
-    'ramrai','sab','sabai','sundar','mazza','yaar','sathi','saathi','kina','kaha','kahile','malai',
-    'timilai','kei','kehi','afno','tapai','hamro','timro','mero','pugyo','aayo','gayo','basyo','khayo','garey',
+    # Copula / existential verb (cha family) — extremely high frequency,
+    # appears in nearly every Nepali sentence
+    "cha", "chha", "xa", "xha", "chan", "chhan", "xan", "xhan",
+    "thiyo", "thyo", "thie", "thiye", "hunchha", "huncha", "hunxa",
+    "vayo", "bhayo", "vo", "bho", "vaeko", "bhaeko",
+
+    # Negation forms
+    "haina", "chaina", "xaina", "vaena", "bhaena", "hunna", "hudaina", "huudaina",
+
+    # Common verbs — garne/hunu/khane/etc. families
+    "garne", "gareko", "gardai", "garcha", "garchan", "garnu", "garnus",
+    "garnuhos", "garyo", "gare", "gareu",
+    "khane", "khancha", "khayo", "khanu", "khaisake",
+    "herne", "hernu", "herchu", "hera", "herda", "herera",
+    "sunne", "sunna", "sunchu", "suneko", "sunyo",
+    "bhannu", "bhanchu", "bhanyo", "bhane", "bhaneko", "bhanne", "bhandai", "vanya",
+    "aaunu", "aayo", "ayo", "aaucha", "aauchan", "aaudai",
+    "jaanu", "gayo", "jancha", "jannu", "jaane",
+    "basne", "basyo", "bascha", "baschan", "baseko",
+    "dine", "diyo", "dinu", "dincha", "diney",
+    "linu", "liyo", "lincha", "liyeko",
+    "paune", "payo", "pauchu", "paincha", "paayo",
+    "sakne", "sakchu", "sakiyo", "sakincha",
+    "parne", "paryo", "parcha", "parchan", "parxa",
+    "pugyo", "pugcha", "pugne",
+
+    # Pronouns & possessives
+    "ma", "malai", "mero", "mera", "meri",
+    "timi", "timro", "timile", "timilai", "timiharu",
+    "hami", "haru", "hamro", "hamile", "hamiharu",
+    "usle", "usko", "uslai", "yo", "tyo",
+    "yesto", "testo", "yasto", "testo", "yastai", "testai",
+    "yiniharu", "tiniharu",
+    "afno", "aphno", "aafno",
+    "tapai", "tapaiko", "tapailai", "tapaile",
+
+    # Adjectives / descriptive words
+    "ramro", "ramri", "ramailo", "naramro", "naramailo",
+    "sundar", "sunder", "thulo", "sano", "saano",
+    "dherai", "dherei", "thorai", "ali", "alik", "alikati",
+    "khatra", "khatarnak", "mazedar", "mazza", "majale", "mast",
+    "sahi", "thik", "thikai", "gajjab", "ekdam", "ekdum", "ekkai", "saccai",
+
+    # Question words / conjunctions
+    "kina", "kaha", "kahaan", "kahile", "kasari", "kasto", "kasto",
+    "ke", "kun", "kunai", "kohi", "kehi",
+    "ani", "tara", "yesari", "tesari", "jasto", "jastai", "jasari",
+
+    # Time words
+    "aaja", "aajai", "bholi", "hijo", "ahile", "ahiley",
+    "sadhai", "sadhain", "kahilekahi", "pahile", "pachi", "pachhi",
+
+    # Social / expressive / honorifics
+    "dhanyabad", "namaste", "namaskar", "sathi", "saathi",
+    "dai", "didi", "bhai", "bahini", "hajur", "daju",
+    "hola", "ho", "hun", "hos", "yaar", "ni",
+    "mildaina", "vaneu",
 }
 
+
+def _tokenize_latin(text: str) -> list[str]:
+    """Extract lowercase alphabetic word tokens, stripping any attached
+    punctuation. clean_comment() deliberately preserves basic punctuation
+    (.,!?'"&:-), so a naive whitespace split would leave tokens like
+    "cha!" or "ramro," that never match the dictionary above even though
+    the word itself is present. This regex sidesteps that entirely."""
+    return re.findall(r"[a-zA-Z]+", text.lower())
+
+
 def _has_nepali_words(text: str) -> bool:
-    return bool(set(text.lower().split()) & _NEPALI_WORDS)
+    return bool(set(_tokenize_latin(text)) & _NEPALI_WORDS)
+
 
 _DEV_RE = re.compile(r'[\u0900-\u097F]')
 
