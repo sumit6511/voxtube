@@ -169,8 +169,7 @@ def _call_ollama(question: str, source_comments: list[dict], model: str | None =
         return f"Ollama error: {e}"
 
 
-def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
-              model: str | None = None) -> dict:
+def _retrieve_sources(job_id: str, question: str, top_k: int) -> list[dict]:
     import faiss
 
     embedder                            = _get_embedder()
@@ -200,6 +199,79 @@ def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
                 "text":  comments[idx]["text"],
                 "score": round(rrf_scores.get(idx, 0.0) / max_score, 4),
             })
+    return sources
 
-    answer = _call_ollama(question, sources, model=model)
+
+def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
+              model: str | None = None) -> dict:
+    sources = _retrieve_sources(job_id, question, top_k)
+    answer  = _call_ollama(question, sources, model=model)
     return {"answer": answer, "sources": sources}
+
+
+def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
+                      model: str | None = None):
+    """NDJSON generator consumed by the /chat endpoint. Emits one JSON object
+    per line: {"type": "sources"|"token"|"error"|"done", ...}."""
+    import requests
+
+    def _emit(obj: dict) -> str:
+        return json.dumps(obj) + "\n"
+
+    try:
+        sources = _retrieve_sources(job_id, question, top_k)
+    except Exception as e:
+        yield _emit({"type": "error", "message": f"Retrieval failed: {e}"})
+        return
+
+    yield _emit({"type": "sources", "sources": sources})
+
+    selected_model = model or OLLAMA_MODEL
+    context = "\n".join(f"  - {c['text']}" for c in sources)
+    prompt = (
+        f'You are an analyst summarizing a YouTube video\'s comment section.\n\n'
+        f'User question: "{question}"\n\n'
+        f'Most relevant comments retrieved for this question:\n{context}\n\n'
+        f'Answer in 2-3 sentences based strictly on the comments above. '
+        f'Be specific - reference what the comments actually say. '
+        f'Do not invent or assume information not present in the comments.'
+    )
+
+    try:
+        resp = requests.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={"model": selected_model, "prompt": prompt, "stream": True},
+            timeout=120,
+            stream=True,
+        )
+        resp.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        yield _emit({"type": "error", "message":
+            f"Cannot reach Ollama at {OLLAMA_HOST}. "
+            "Make sure Ollama is running: open a terminal and run 'ollama serve'."})
+        return
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            yield _emit({"type": "error", "message":
+                f"Model '{selected_model}' not found in Ollama. Pull it first: ollama pull {selected_model}"})
+        else:
+            yield _emit({"type": "error", "message": f"Ollama error: {e}"})
+        return
+    except Exception as e:
+        yield _emit({"type": "error", "message": f"Ollama error: {e}"})
+        return
+
+    try:
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            chunk = json.loads(line)
+            if chunk.get("response"):
+                yield _emit({"type": "token", "text": chunk["response"]})
+            if chunk.get("done"):
+                break
+    except Exception as e:
+        yield _emit({"type": "error", "message": f"Streaming error: {e}"})
+        return
+
+    yield _emit({"type": "done"})
