@@ -29,7 +29,7 @@ export default function SentimentChart({ data }: Props) {
                paddingAngle={3} dataKey="value">
             {chartData.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
           </Pie>
-          <Tooltip contentStyle={TOOLTIP_STYLE}
+          <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: '#E5E7EB' }}
             formatter={(value) => {
               const n = Number(value)
               return [`${n}  (${total ? Math.round((n / total) * 100) : 0}%)`, '']
