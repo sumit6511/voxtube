@@ -45,6 +45,22 @@ function colorFor(text: string): string {
 
 interface PlacedWord { text: string; size: number; x: number; y: number; rotate: number; freq: number }
 
+// d3-cloud measures each word on an offscreen canvas using this exact font to
+// decide non-overlapping placement. DM Sans loads asynchronously (Google Fonts
+// @import), so if layout runs before it's ready, the canvas falls back to a
+// system font for measurement — the computed layout no longer matches what
+// actually paints in the SVG, and words end up visually overlapping despite
+// the algorithm having "succeeded". Force both weights to load first.
+async function ensureFontReady() {
+  try {
+    await Promise.all([
+      document.fonts.load('500 16px "DM Sans"'),
+      document.fonts.load('700 16px "DM Sans"'),
+    ])
+    await document.fonts.ready
+  } catch { /* Font Loading API unavailable — proceed with best-effort metrics */ }
+}
+
 export default function WordCloud({ comments }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [placed, setPlaced] = useState<PlacedWord[]>([])
@@ -68,17 +84,28 @@ export default function WordCloud({ comments }: Props) {
       text, size: Math.round(lerp(freq, minF, maxF, 13, 64)), freq,
     }))
 
-    cloud<CloudInput>()
-      .size([w, h]).words(words).padding(5)
-      .rotate(() => { const r = Math.random(); if (r < 0.55) return 0; if (r < 0.75) return 90; return -90 })
-      .font('DM Sans').fontWeight((d) => (d.size! > 28 ? '700' : '500')).fontSize(d => d.size!)
-      .on('end', (result: CloudInput[]) => {
-        setPlaced(result.map(d => ({
-          text: d.text!, size: d.size!, x: d.x ?? 0, y: d.y ?? 0, rotate: d.rotate ?? 0, freq: d.freq,
-        })))
-        setComputing(false)
-      })
-      .start()
+    let cancelled = false
+
+    ensureFontReady().then(() => {
+      if (cancelled) return
+      cloud<CloudInput>()
+        .size([w, h]).words(words).padding(6)
+        // Continuous random tilt instead of a fixed 0/±90 choice — d3-cloud's
+        // collision detection works on rasterized sprites, so arbitrary
+        // angles are just as safe for non-overlap as axis-aligned ones.
+        .rotate(() => Math.random() * 70 - 35)
+        .font('DM Sans').fontWeight((d) => (d.size! > 28 ? '700' : '500')).fontSize(d => d.size!)
+        .on('end', (result: CloudInput[]) => {
+          if (cancelled) return
+          setPlaced(result.map(d => ({
+            text: d.text!, size: d.size!, x: d.x ?? 0, y: d.y ?? 0, rotate: d.rotate ?? 0, freq: d.freq,
+          })))
+          setComputing(false)
+        })
+        .start()
+    })
+
+    return () => { cancelled = true }
   }, [frequencies])
 
   const missing = frequencies.length - placed.length
