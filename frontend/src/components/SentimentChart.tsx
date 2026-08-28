@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { useMountedAfterTick } from '../hooks/useMountedAfterTick'
 
 interface Props {
   data: { positive: number; neutral: number; negative: number }
@@ -16,6 +17,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function SentimentChart({ data }: Props) {
+  const mounted = useMountedAfterTick()
   const total = data.positive + data.neutral + data.negative
   const chartData = SLICES
     .map(s => ({ name: s.label, value: data[s.key as keyof typeof data], color: s.color }))
@@ -23,23 +25,26 @@ export default function SentimentChart({ data }: Props) {
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
-          <Pie data={chartData} cx="50%" cy="50%" innerRadius={52} outerRadius={78}
-               paddingAngle={3} dataKey="value">
-            {chartData.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
-          </Pie>
-          <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: '#E5E7EB' }}
-            formatter={(value) => {
-              const n = Number(value)
-              return [`${n}  (${total ? Math.round((n / total) * 100) : 0}%)`, '']
-            }} />
-          <Legend iconType="circle" iconSize={8}
-            formatter={v => (
-              <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
-            )} />
-        </PieChart>
-      </ResponsiveContainer>
+      {mounted && (
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie data={chartData} cx="50%" cy="50%" innerRadius={52} outerRadius={78}
+                 paddingAngle={3} dataKey="value">
+              {chartData.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
+            </Pie>
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: '#E5E7EB' }}
+              formatter={(value) => {
+                const n = Number(value)
+                return [`${n}  (${total ? Math.round((n / total) * 100) : 0}%)`, '']
+              }} />
+            <Legend iconType="circle" iconSize={8}
+              formatter={v => (
+                <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
+              )} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+      {!mounted && <div style={{ height: 200 }} />}
       <div className="grid grid-cols-3 gap-2 mt-1">
         {SLICES.map(s => (
           <div key={s.key} className="text-center">

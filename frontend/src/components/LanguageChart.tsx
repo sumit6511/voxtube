@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { Comment } from '../api'
+import { useMountedAfterTick } from '../hooks/useMountedAfterTick'
 
 interface Props { comments: Comment[] }
 
@@ -16,6 +17,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function LanguageChart({ comments }: Props) {
+  const mounted = useMountedAfterTick()
   const counts = useMemo(() => {
     const c = { nepali: 0, english: 0, neplish: 0 }
     for (const comment of comments) {
@@ -32,23 +34,26 @@ export default function LanguageChart({ comments }: Props) {
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
-          <Pie data={chartData} cx="50%" cy="50%" innerRadius={52} outerRadius={78}
-               paddingAngle={3} dataKey="value">
-            {chartData.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
-          </Pie>
-          <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: '#E5E7EB' }}
-            formatter={(value) => {
-              const n = Number(value)
-              return [`${n}  (${total ? Math.round((n / total) * 100) : 0}%)`, '']
-            }} />
-          <Legend iconType="circle" iconSize={8}
-            formatter={v => (
-              <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
-            )} />
-        </PieChart>
-      </ResponsiveContainer>
+      {mounted && (
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie data={chartData} cx="50%" cy="50%" innerRadius={52} outerRadius={78}
+                 paddingAngle={3} dataKey="value">
+              {chartData.map((entry, i) => <Cell key={i} fill={entry.color} strokeWidth={0} />)}
+            </Pie>
+            <Tooltip contentStyle={TOOLTIP_STYLE} itemStyle={{ color: '#E5E7EB' }}
+              formatter={(value) => {
+                const n = Number(value)
+                return [`${n}  (${total ? Math.round((n / total) * 100) : 0}%)`, '']
+              }} />
+            <Legend iconType="circle" iconSize={8}
+              formatter={v => (
+                <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
+              )} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+      {!mounted && <div style={{ height: 200 }} />}
       <div className="grid grid-cols-3 gap-2 mt-1">
         {Object.entries(LANG_CONFIG).map(([key, cfg]) => {
           const count = counts[key as keyof typeof counts]
