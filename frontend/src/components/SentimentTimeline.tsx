@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { Comment } from '../api'
+import { useMountedAfterTick } from '../hooks/useMountedAfterTick'
 
 interface Props { comments: Comment[] }
 type Granularity = 'day' | 'week' | 'month'
@@ -49,6 +50,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function SentimentTimeline({ comments }: Props) {
+  const mounted = useMountedAfterTick()
   const { points, granularity, withDates } = useMemo(() => buildTimeline(comments), [comments])
 
   if (withDates === 0) {
@@ -68,39 +70,42 @@ export default function SentimentTimeline({ comments }: Props) {
       <p className="font-mono text-xs text-gray-600 text-right mb-3">
         {periodLabel} · {points.length} periods · {withDates} comments
       </p>
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>
-          <defs>
-            <linearGradient id="posGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="neuGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6B7280" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#6B7280" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="negGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: '#6B7280', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
-            axisLine={false} tickLine={false} interval="preserveStartEnd" />
-          <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2D3446' }} />
-          <Legend iconType="circle" iconSize={8}
-            formatter={v => (
-              <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
-            )} />
-          <Area type="monotone" dataKey="positive" name="Positive" stroke="#10B981" strokeWidth={2}
-                fill="url(#posGrad)" dot={false} activeDot={{ r: 4, fill: '#10B981' }} />
-          <Area type="monotone" dataKey="neutral" name="Neutral" stroke="#6B7280" strokeWidth={2}
-                fill="url(#neuGrad)" dot={false} activeDot={{ r: 4, fill: '#6B7280' }} />
-          <Area type="monotone" dataKey="negative" name="Negative" stroke="#F43F5E" strokeWidth={2}
-                fill="url(#negGrad)" dot={false} activeDot={{ r: 4, fill: '#F43F5E' }} />
-        </AreaChart>
-      </ResponsiveContainer>
+      {mounted && (
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>
+            <defs>
+              <linearGradient id="posGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="neuGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6B7280" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#6B7280" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="negGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#6B7280', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
+              axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2D3446' }} />
+            <Legend iconType="circle" iconSize={8}
+              formatter={v => (
+                <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
+              )} />
+            <Area type="monotone" dataKey="positive" name="Positive" stroke="#10B981" strokeWidth={2}
+                  fill="url(#posGrad)" dot={false} activeDot={{ r: 4, fill: '#10B981' }} />
+            <Area type="monotone" dataKey="neutral" name="Neutral" stroke="#6B7280" strokeWidth={2}
+                  fill="url(#neuGrad)" dot={false} activeDot={{ r: 4, fill: '#6B7280' }} />
+            <Area type="monotone" dataKey="negative" name="Negative" stroke="#F43F5E" strokeWidth={2}
+                  fill="url(#negGrad)" dot={false} activeDot={{ r: 4, fill: '#F43F5E' }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+      {!mounted && <div style={{ height: 220 }} />}
     </div>
   )
 }

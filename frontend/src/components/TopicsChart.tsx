@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { Topic } from '../api'
+import { useMountedAfterTick } from '../hooks/useMountedAfterTick'
 
 interface Props {
   topics: Topic[]
@@ -48,6 +49,7 @@ function TopicTick({ x, y, payload }: any) {
 }
 
 export default function TopicsChart({ topics, onTopicClick }: Props) {
+  const mounted = useMountedAfterTick()
   const data = [...topics]
     .sort((a, b) => b.comment_count - a.comment_count)
     .slice(0, 8)
@@ -67,24 +69,27 @@ export default function TopicsChart({ topics, onTopicClick }: Props) {
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} margin={{ top: 4, right: 0, left: -22, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
-          <XAxis dataKey="name" tick={<TopicTick />} axisLine={false} tickLine={false} interval={0} />
-          <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-          <Legend iconType="circle" iconSize={8} verticalAlign="top" align="right" height={28}
-            formatter={v => (
-              <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
-            )} />
-          <Bar dataKey="positive" stackId="s" fill="#10B981" name="Positive"
-               onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
-          <Bar dataKey="neutral"  stackId="s" fill="#6B7280" name="Neutral"
-               onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
-          <Bar dataKey="negative" stackId="s" fill="#F43F5E" name="Negative" radius={[4, 4, 0, 0]}
-               onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
-        </BarChart>
-      </ResponsiveContainer>
+      {mounted && (
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={data} margin={{ top: 4, right: 0, left: -22, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
+            <XAxis dataKey="name" tick={<TopicTick />} axisLine={false} tickLine={false} interval={0} />
+            <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Legend iconType="circle" iconSize={8} verticalAlign="top" align="right" height={28}
+              formatter={v => (
+                <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
+              )} />
+            <Bar dataKey="positive" stackId="s" fill="#10B981" name="Positive"
+                 onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
+            <Bar dataKey="neutral"  stackId="s" fill="#6B7280" name="Neutral"
+                 onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
+            <Bar dataKey="negative" stackId="s" fill="#F43F5E" name="Negative" radius={[4, 4, 0, 0]}
+                 onClick={handleBarClick} style={{ cursor: onTopicClick ? 'pointer' : 'default' }} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+      {!mounted && <div style={{ height: 240 }} />}
 
       {onTopicClick && (
         <p className="text-xs font-mono text-gray-700 text-center -mt-1">
