@@ -11,6 +11,42 @@ const TOOLTIP_STYLE = {
   borderRadius: '8px', fontSize: '12px', fontFamily: 'IBM Plex Mono',
 }
 
+const MAX_CHARS_PER_LINE = 12
+
+// Wraps a topic title onto at most 2 lines, breaking on the nearest word
+// boundary; a second line that still overflows is truncated with an ellipsis.
+function wrapLabel(text: string): string[] {
+  if (text.length <= MAX_CHARS_PER_LINE) return [text]
+
+  const words = text.split(' ')
+  let line1 = ''
+  let i = 0
+  for (; i < words.length; i++) {
+    const next = line1 ? `${line1} ${words[i]}` : words[i]
+    if (line1 && next.length > MAX_CHARS_PER_LINE) break
+    line1 = next
+  }
+  if (i === 0) {
+    // Single word longer than the line — hard-split it instead of stalling.
+    return [text.slice(0, MAX_CHARS_PER_LINE), text.slice(MAX_CHARS_PER_LINE, MAX_CHARS_PER_LINE * 2 - 1) + '…']
+  }
+
+  let line2 = words.slice(i).join(' ')
+  if (line2.length > MAX_CHARS_PER_LINE) line2 = `${line2.slice(0, MAX_CHARS_PER_LINE - 1)}…`
+  return line2 ? [line1, line2] : [line1]
+}
+
+function TopicTick({ x, y, payload }: any) {
+  const lines = wrapLabel(payload.value)
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fill="#6B7280" fontSize={11} fontFamily="IBM Plex Mono">
+        {lines.map((line, i) => <tspan key={i} x={0} dy={i === 0 ? 14 : 13}>{line}</tspan>)}
+      </text>
+    </g>
+  )
+}
+
 export default function TopicsChart({ topics, onTopicClick }: Props) {
   const data = [...topics]
     .sort((a, b) => b.comment_count - a.comment_count)
@@ -31,14 +67,13 @@ export default function TopicsChart({ topics, onTopicClick }: Props) {
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 0, right: 0, left: -22, bottom: 40 }}>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={data} margin={{ top: 4, right: 0, left: -22, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
-            axisLine={false} tickLine={false} interval={0} angle={-25} textAnchor="end" />
+          <XAxis dataKey="name" tick={<TopicTick />} axisLine={false} tickLine={false} interval={0} />
           <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-          <Legend iconType="circle" iconSize={8}
+          <Legend iconType="circle" iconSize={8} verticalAlign="top" align="right" height={28}
             formatter={v => (
               <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
             )} />
