@@ -26,7 +26,17 @@ function ModelSelector({ selected, onChange }: { selected: string; onChange: (m:
     api.ollamaModels()
       .then(data => {
         setModels(data.models); setError(data.error)
-        if (!selected && (data.models.length > 0 || data.default)) onChange(data.models[0] ?? data.default)
+        if (!selected && (data.models.length > 0 || data.default)) {
+          // Prefer the backend's configured default (OLLAMA_MODEL, e.g.
+          // "llama3.2") when it's actually pulled — Ollama's tag list isn't
+          // sorted, so blindly taking models[0] could pick a different model
+          // just because it happens to come first. Model names carry a tag
+          // suffix ("llama3.2:latest"), so match on that too.
+          const preferred = data.models.find(
+            m => m === data.default || m.startsWith(`${data.default}:`)
+          )
+          onChange(preferred ?? data.models[0] ?? data.default)
+        }
         setLoading(false)
       })
       .catch(() => { setError('Could not reach backend'); setLoading(false) })

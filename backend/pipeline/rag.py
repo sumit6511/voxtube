@@ -162,7 +162,8 @@ def _contextualized_query(question: str, history: list[dict] | None) -> str:
     return question
 
 
-def _build_prompt(question: str, source_comments: list[dict], history: list[dict] | None = None) -> str:
+def _build_prompt(question: str, source_comments: list[dict], history: list[dict] | None = None,
+                   stats: str | None = None) -> str:
     context = "\n".join(f"  - {c['text']}" for c in source_comments)
     history_block = ""
     recent = _recent_history(history)
@@ -172,8 +173,10 @@ def _build_prompt(question: str, source_comments: list[dict], history: list[dict
             for t in recent
         )
         history_block = f'Conversation so far:\n{turns}\n\n'
+    stats_block = f'{stats}\n\n' if stats else ''
     return (
         f'You are an analyst discussing a YouTube video\'s comment section with a user.\n\n'
+        f'{stats_block}'
         f'{history_block}'
         f'User question: "{question}"\n\n'
         f'Relevant comments for this question:\n{context}\n\n'
@@ -182,16 +185,19 @@ def _build_prompt(question: str, source_comments: list[dict], history: list[dict
         f'is a follow-up — do not quote comments verbatim, list them one by '
         f'one, or refer to "comment 1" / "one comment" etc. The source '
         f'comments are already shown separately to the user, so just give the '
-        f'answer itself. Base it strictly on the comments above; do not '
-        f'invent or assume anything not present in them.'
+        f'answer itself. For any question about counts, percentages, or '
+        f'statistics, use the exact numbers from the analysis summary above '
+        f'instead of estimating from the sample comments. Base your answer '
+        f'strictly on the summary and comments above; do not invent or '
+        f'assume anything not present in them.'
     )
 
 
 def _call_ollama(question: str, source_comments: list[dict], model: str | None = None,
-                  history: list[dict] | None = None) -> str:
+                  history: list[dict] | None = None, stats: str | None = None) -> str:
     import requests
     selected_model = model or OLLAMA_MODEL
-    prompt = _build_prompt(question, source_comments, history)
+    prompt = _build_prompt(question, source_comments, history, stats)
     try:
         resp = requests.post(
             f"{OLLAMA_HOST}/api/generate",
@@ -248,14 +254,16 @@ def _retrieve_sources(job_id: str, question: str, top_k: int,
 
 
 def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
-              model: str | None = None, history: list[dict] | None = None) -> dict:
+              model: str | None = None, history: list[dict] | None = None,
+              stats: str | None = None) -> dict:
     sources = _retrieve_sources(job_id, question, top_k, history)
-    answer  = _call_ollama(question, sources, model=model, history=history)
+    answer  = _call_ollama(question, sources, model=model, history=history, stats=stats)
     return {"answer": answer, "sources": sources}
 
 
 def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
-                      model: str | None = None, history: list[dict] | None = None):
+                      model: str | None = None, history: list[dict] | None = None,
+                      stats: str | None = None):
     """NDJSON generator consumed by the /chat endpoint. Emits one JSON object
     per line: {"type": "sources"|"token"|"error"|"done", ...}."""
     import requests
@@ -272,7 +280,7 @@ def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
     yield _emit({"type": "sources", "sources": sources})
 
     selected_model = model or OLLAMA_MODEL
-    prompt = _build_prompt(question, sources, history)
+    prompt = _build_prompt(question, sources, history, stats)
 
     try:
         resp = requests.post(

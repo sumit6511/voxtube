@@ -55,6 +55,48 @@ def _parse_ts(s):
     try: return datetime.fromisoformat(s.replace('Z', '+00:00'))
     except: return None
 
+def _build_analysis_stats(db: Session, job_id: str) -> str:
+    """Exact, pre-computed numbers for the chat LLM — retrieval only ever
+    surfaces a handful of sample comments, which is useless (and prone to
+    the model just guessing) for questions like "what % is positive?"."""
+    comments = db.query(Comment).filter(Comment.job_id == job_id).all()
+    topics   = db.query(Topic).filter(Topic.job_id   == job_id).all()
+    total = len(comments)
+    if total == 0:
+        return "Video analysis summary:\n  No comments were analyzed for this video."
+
+    def pct(n): return round(n / total * 100, 1)
+
+    sent_counts = {"positive": 0, "neutral": 0, "negative": 0}
+    for c in comments:
+        if c.sentiment_label in sent_counts: sent_counts[c.sentiment_label] += 1
+    toxic_count = sum(1 for c in comments if c.is_toxic)
+
+    # Same nepali/english/neplish bucketing as the frontend's LanguageChart.
+    lang_counts = {"nepali": 0, "english": 0, "neplish": 0}
+    for c in comments:
+        lang = c.lang if c.lang in lang_counts else "neplish"
+        lang_counts[lang] += 1
+
+    lines = [
+        "Video analysis summary (exact, verified numbers — use these directly "
+        "for any question about counts, percentages, or statistics):",
+        f"  Total comments analyzed: {total}",
+        f"  Sentiment: positive {sent_counts['positive']} ({pct(sent_counts['positive'])}%), "
+        f"neutral {sent_counts['neutral']} ({pct(sent_counts['neutral'])}%), "
+        f"negative {sent_counts['negative']} ({pct(sent_counts['negative'])}%)",
+        f"  Toxic comments: {toxic_count} ({pct(toxic_count)}%)",
+        f"  Languages: Nepali {pct(lang_counts['nepali'])}%, "
+        f"English {pct(lang_counts['english'])}%, Neplish {pct(lang_counts['neplish'])}%",
+    ]
+
+    if topics:
+        lines.append(f"  Topics discovered: {len(topics)}")
+        for t in sorted(topics, key=lambda t: t.comment_count, reverse=True)[:8]:
+            lines.append(f"    - \"{t.label}\": {t.comment_count} comments ({pct(t.comment_count)}%)")
+
+    return "\n".join(lines)
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def run_pipeline(job_id: str, youtube_url: str, max_comments: int):
@@ -296,8 +338,10 @@ def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
     from .pipeline.rag import query_rag_stream
 
     history = [{"role": t.role, "text": t.text} for t in request.history]
+    stats   = _build_analysis_stats(db, job_id)
     return StreamingResponse(
-        query_rag_stream(job_id, request.question, model=request.model or None, history=history),
+        query_rag_stream(job_id, request.question, model=request.model or None,
+                          history=history, stats=stats),
         media_type="application/x-ndjson",
     )
 
