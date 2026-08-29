@@ -46,16 +46,16 @@ function colorFor(text: string): string {
 interface PlacedWord { text: string; size: number; x: number; y: number; rotate: number; freq: number }
 
 // d3-cloud measures each word on an offscreen canvas using this exact font to
-// decide non-overlapping placement. DM Sans loads asynchronously (Google Fonts
-// @import), so if layout runs before it's ready, the canvas falls back to a
-// system font for measurement — the computed layout no longer matches what
-// actually paints in the SVG, and words end up visually overlapping despite
-// the algorithm having "succeeded". Force both weights to load first.
+// decide non-overlapping placement. Space Grotesk loads asynchronously (Google
+// Fonts @import), so if layout runs before it's ready, the canvas falls back
+// to a system font for measurement — the computed layout no longer matches
+// what actually paints in the SVG, and words end up visually overlapping
+// despite the algorithm having "succeeded". Force both weights to load first.
 async function ensureFontReady() {
   try {
     await Promise.all([
-      document.fonts.load('500 16px "DM Sans"'),
-      document.fonts.load('700 16px "DM Sans"'),
+      document.fonts.load('500 16px "Space Grotesk"'),
+      document.fonts.load('700 16px "Space Grotesk"'),
     ])
     await document.fonts.ready
   } catch { /* Font Loading API unavailable — proceed with best-effort metrics */ }
@@ -94,7 +94,7 @@ export default function WordCloud({ comments }: Props) {
         // collision detection works on rasterized sprites, so arbitrary
         // angles are just as safe for non-overlap as axis-aligned ones.
         .rotate(() => Math.random() * 70 - 35)
-        .font('DM Sans').fontWeight((d) => (d.size! > 28 ? '700' : '500')).fontSize(d => d.size!)
+        .font('Space Grotesk').fontWeight((d) => (d.size! > 28 ? '700' : '500')).fontSize(d => d.size!)
         .on('end', (result: CloudInput[]) => {
           if (cancelled) return
           setPlaced(result.map(d => ({
@@ -139,7 +139,7 @@ export default function WordCloud({ comments }: Props) {
                 <text key={w.text} textAnchor="middle" dominantBaseline="middle"
                   transform={`translate(${w.x},${w.y}) rotate(${w.rotate})`}
                   style={{
-                    fontSize: w.size, fontFamily: 'DM Sans, sans-serif',
+                    fontSize: w.size, fontFamily: '"Space Grotesk", sans-serif',
                     fontWeight: w.size > 28 ? 700 : 500, fill: colorFor(w.text),
                     cursor: 'default', userSelect: 'none',
                   }}>
