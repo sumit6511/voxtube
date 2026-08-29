@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2, ChevronDown, Cpu } from 'lucide-react'
-import { api } from '../api'
+import { api, type ChatTurn } from '../api'
 import Dropdown from './Dropdown'
 
 interface Source { id: string; text: string; score: number }
@@ -109,6 +109,13 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
     if (!q || loading) return
     setInput('')
 
+    // Snapshot prior turns as conversation context for follow-up questions —
+    // taken before the new user/assistant messages are appended below.
+    const history: ChatTurn[] = messages
+      .filter(m => !m.error)
+      .slice(-10)
+      .map(m => ({ role: m.role, text: m.text }))
+
     // Index the assistant placeholder will land at (user msg, then assistant msg)
     const assistantIndex = messages.length + 1
 
@@ -124,7 +131,7 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
       setMessages(prev => prev.map((m, i) => (i === assistantIndex ? { ...m, ...patch } : m)))
     }
 
-    await api.chatStream(jobId, q, selectedModel || undefined, {
+    await api.chatStream(jobId, q, selectedModel || undefined, history, {
       onSources: (sources) => updateAssistant({ sources }),
       onToken:   (text) => {
         if (!isMountedRef.current) return

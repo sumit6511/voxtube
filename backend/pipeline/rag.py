@@ -9,6 +9,7 @@ import json
 import os
 import pickle
 import re
+from functools import lru_cache
 
 import numpy as np
 
@@ -93,7 +94,13 @@ def _rrf_fusion(dense_idxs: list[int], sparse_idxs: list[int], k: int = 60) -> l
     return sorted(scores, key=lambda x: scores[x], reverse=True)
 
 
+@lru_cache(maxsize=8)
 def _load_artifacts(job_id: str) -> tuple:
+    # Each job_id is a fresh UUID whose index/comments are written once by
+    # build_index() and never touched again, so caching by job_id alone
+    # (no mtime/staleness check) is safe — this just saves re-reading the
+    # FAISS index, BM25 pickle, and full comments JSON from disk on every
+    # single chat message in a conversation.
     import faiss
     faiss_path, bm25_path, cmt_path, _ = _paths(job_id)
 
@@ -137,18 +144,54 @@ def _sparse_retrieve(bm25_payload: dict, query_tokens: list[str], n: int) -> lis
     return np.argsort(scores)[::-1][:actual_n].tolist()
 
 
-def _call_ollama(question: str, source_comments: list[dict], model: str | None = None) -> str:
+MAX_HISTORY_TURNS = 6  # last N messages (user+assistant) kept for context
+
+
+def _recent_history(history: list[dict] | None) -> list[dict]:
+    return list(history or [])[-MAX_HISTORY_TURNS:]
+
+
+def _contextualized_query(question: str, history: list[dict] | None) -> str:
+    """Cheap follow-up handling without an extra LLM round-trip: fold the
+    last user message into the retrieval query so "what about the audio?"
+    after "what do people think of the visuals?" still retrieves relevant
+    comments instead of just whatever loosely matches "audio" alone."""
+    for turn in reversed(_recent_history(history)):
+        if turn.get("role") == "user" and turn.get("text") != question:
+            return f"{turn['text']} {question}"
+    return question
+
+
+def _build_prompt(question: str, source_comments: list[dict], history: list[dict] | None = None) -> str:
+    context = "\n".join(f"  - {c['text']}" for c in source_comments)
+    history_block = ""
+    recent = _recent_history(history)
+    if recent:
+        turns = "\n".join(
+            f'{"User" if t.get("role") == "user" else "You"}: {t.get("text", "")}'
+            for t in recent
+        )
+        history_block = f'Conversation so far:\n{turns}\n\n'
+    return (
+        f'You are an analyst discussing a YouTube video\'s comment section with a user.\n\n'
+        f'{history_block}'
+        f'User question: "{question}"\n\n'
+        f'Relevant comments for this question:\n{context}\n\n'
+        f'Answer in 1-2 direct, concise sentences that synthesize the overall '
+        f'takeaway, using the conversation so far for context if the question '
+        f'is a follow-up — do not quote comments verbatim, list them one by '
+        f'one, or refer to "comment 1" / "one comment" etc. The source '
+        f'comments are already shown separately to the user, so just give the '
+        f'answer itself. Base it strictly on the comments above; do not '
+        f'invent or assume anything not present in them.'
+    )
+
+
+def _call_ollama(question: str, source_comments: list[dict], model: str | None = None,
+                  history: list[dict] | None = None) -> str:
     import requests
     selected_model = model or OLLAMA_MODEL
-    context = "\n".join(f"  - {c['text']}" for c in source_comments)
-    prompt = (
-        f'You are an analyst summarizing a YouTube video\'s comment section.\n\n'
-        f'User question: "{question}"\n\n'
-        f'Most relevant comments retrieved for this question:\n{context}\n\n'
-        f'Answer in 2-3 sentences based strictly on the comments above. '
-        f'Be specific - reference what the comments actually say. '
-        f'Do not invent or assume information not present in the comments.'
-    )
+    prompt = _build_prompt(question, source_comments, history)
     try:
         resp = requests.post(
             f"{OLLAMA_HOST}/api/generate",
@@ -169,15 +212,17 @@ def _call_ollama(question: str, source_comments: list[dict], model: str | None =
         return f"Ollama error: {e}"
 
 
-def _retrieve_sources(job_id: str, question: str, top_k: int) -> list[dict]:
+def _retrieve_sources(job_id: str, question: str, top_k: int,
+                       history: list[dict] | None = None) -> list[dict]:
     import faiss
 
     embedder                            = _get_embedder()
     faiss_index, bm25_payload, comments = _load_artifacts(job_id)
 
-    q_vec = embedder.encode([question], convert_to_numpy=True).astype(np.float32)
+    retrieval_query = _contextualized_query(question, history)
+    q_vec = embedder.encode([retrieval_query], convert_to_numpy=True).astype(np.float32)
     faiss.normalize_L2(q_vec)
-    q_tokens = _tokenize(question)
+    q_tokens = _tokenize(retrieval_query)
 
     candidate_n = min(CANDIDATE_N, len(comments))
     dense_idxs  = _dense_retrieve(faiss_index, q_vec, candidate_n)
@@ -203,14 +248,14 @@ def _retrieve_sources(job_id: str, question: str, top_k: int) -> list[dict]:
 
 
 def query_rag(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
-              model: str | None = None) -> dict:
-    sources = _retrieve_sources(job_id, question, top_k)
-    answer  = _call_ollama(question, sources, model=model)
+              model: str | None = None, history: list[dict] | None = None) -> dict:
+    sources = _retrieve_sources(job_id, question, top_k, history)
+    answer  = _call_ollama(question, sources, model=model, history=history)
     return {"answer": answer, "sources": sources}
 
 
 def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
-                      model: str | None = None):
+                      model: str | None = None, history: list[dict] | None = None):
     """NDJSON generator consumed by the /chat endpoint. Emits one JSON object
     per line: {"type": "sources"|"token"|"error"|"done", ...}."""
     import requests
@@ -219,7 +264,7 @@ def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
         return json.dumps(obj) + "\n"
 
     try:
-        sources = _retrieve_sources(job_id, question, top_k)
+        sources = _retrieve_sources(job_id, question, top_k, history)
     except Exception as e:
         yield _emit({"type": "error", "message": f"Retrieval failed: {e}"})
         return
@@ -227,15 +272,7 @@ def query_rag_stream(job_id: str, question: str, top_k: int = TOP_K_DEFAULT,
     yield _emit({"type": "sources", "sources": sources})
 
     selected_model = model or OLLAMA_MODEL
-    context = "\n".join(f"  - {c['text']}" for c in sources)
-    prompt = (
-        f'You are an analyst summarizing a YouTube video\'s comment section.\n\n'
-        f'User question: "{question}"\n\n'
-        f'Most relevant comments retrieved for this question:\n{context}\n\n'
-        f'Answer in 2-3 sentences based strictly on the comments above. '
-        f'Be specific - reference what the comments actually say. '
-        f'Do not invent or assume information not present in the comments.'
-    )
+    prompt = _build_prompt(question, sources, history)
 
     try:
         resp = requests.post(

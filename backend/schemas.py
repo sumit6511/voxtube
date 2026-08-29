@@ -69,9 +69,15 @@ class ResultsResponse(BaseModel):
     comments:          List[CommentOut]
 
 
+class ChatTurn(BaseModel):
+    role: str  # 'user' | 'assistant'
+    text: str
+
+
 class ChatRequest(BaseModel):
     question: str
     model:    Optional[str] = None
+    history:  List[ChatTurn] = []
 
 
 class SourceComment(BaseModel):

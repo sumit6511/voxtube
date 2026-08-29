@@ -39,6 +39,7 @@ export interface ResultsResponse {
   topics: Topic[]; comments: Comment[]
 }
 export interface ChatSource { id: string; text: string; score: number }
+export interface ChatTurn { role: 'user' | 'assistant'; text: string }
 export interface MetricsResult {
   accuracy: number; precision: number; recall: number; f1: number
   confusion_matrix: number[][]
@@ -88,6 +89,7 @@ export const api = {
     jobId: string,
     question: string,
     model: string | undefined,
+    history: ChatTurn[],
     handlers: {
       onSources?: (sources: ChatSource[]) => void
       onToken?:   (text: string) => void
@@ -100,7 +102,7 @@ export const api = {
       res = await fetch(`${BASE}/chat/${jobId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, model: model ?? null }),
+        body: JSON.stringify({ question, model: model ?? null, history }),
       })
     } catch {
       handlers.onError?.('Could not reach the backend. Is it running?')

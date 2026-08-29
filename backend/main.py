@@ -295,8 +295,9 @@ def chat(job_id: str, request: ChatRequest, db: Session = Depends(get_db)):
 
     from .pipeline.rag import query_rag_stream
 
+    history = [{"role": t.role, "text": t.text} for t in request.history]
     return StreamingResponse(
-        query_rag_stream(job_id, request.question, model=request.model or None),
+        query_rag_stream(job_id, request.question, model=request.model or None, history=history),
         media_type="application/x-ndjson",
     )
 
