@@ -1,7 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2, ChevronDown, Cpu } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import type { Components } from 'react-markdown'
 import { api, type ChatTurn } from '../api'
 import Dropdown from './Dropdown'
+
+const markdownComponents: Components = {
+  p:      ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-amber">{children}</strong>,
+  ul:     ({ children }) => <ul className="list-disc list-outside pl-4 mb-2 last:mb-0 space-y-1">{children}</ul>,
+  ol:     ({ children }) => <ol className="list-decimal list-outside pl-4 mb-2 last:mb-0 space-y-1">{children}</ol>,
+  li:     ({ children }) => <li className="pl-1">{children}</li>,
+  code:   ({ children }) => <code className="font-mono text-xs bg-base px-1 py-0.5 rounded">{children}</code>,
+}
 
 interface Source { id: string; text: string; score: number }
 interface Message {
@@ -184,13 +195,17 @@ export default function ChatPanel({ jobId }: { jobId: string }) {
             <div className={`max-w-[88%] rounded-xl px-4 py-3 text-sm font-body leading-relaxed
               ${msg.role === 'user' ? 'bg-amber/10 border border-amber/20 text-gray-200'
                 : msg.error ? 'bg-neg/5 border border-neg/20 text-neg' : 'card text-gray-300'}`}>
-              <p className="whitespace-pre-wrap">
-                {msg.text}
-                {msg.streaming && (
-                  <span className="inline-block w-1.5 h-4 bg-amber/70 ml-0.5 -mb-0.5
-                                   animate-pulse-dot align-middle" />
-                )}
-              </p>
+              {msg.role === 'assistant' && !msg.error ? (
+                <div>
+                  <ReactMarkdown components={markdownComponents}>{msg.text}</ReactMarkdown>
+                  {msg.streaming && (
+                    <span className="inline-block w-1.5 h-4 bg-amber/70 ml-0.5 -mb-0.5
+                                     animate-pulse-dot align-middle" />
+                  )}
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.text}</p>
+              )}
               {msg.sources && msg.sources.length > 0 && <SourcesCitation sources={msg.sources} />}
             </div>
           </div>
