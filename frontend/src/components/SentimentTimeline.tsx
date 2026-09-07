@@ -87,7 +87,7 @@ export default function SentimentTimeline({ comments }: Props) {
         {periodLabel} · {points.length} periods · {withDates} comments
       </p>
       {mounted && (
-        <ResponsiveContainer width="100%" height={232}>
+        <ResponsiveContainer width="100%" height={248}>
           <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 12 }}>
             <defs>
               <linearGradient id="posGrad" x1="0" y1="0" x2="0" y2="1">
@@ -108,7 +108,7 @@ export default function SentimentTimeline({ comments }: Props) {
               axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2D3446' }} />
-            <Legend iconType="circle" iconSize={8}
+            <Legend iconType="circle" iconSize={8} wrapperStyle={{ paddingTop: 16 }}
               formatter={v => (
                 <span style={{ fontSize: '12px', color: '#9CA3AF', fontFamily: 'IBM Plex Mono' }}>{v}</span>
               )} />
@@ -121,7 +121,7 @@ export default function SentimentTimeline({ comments }: Props) {
           </AreaChart>
         </ResponsiveContainer>
       )}
-      {!mounted && <div style={{ height: 232 }} />}
+      {!mounted && <div style={{ height: 248 }} />}
     </div>
   )
 }
