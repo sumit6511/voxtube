@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Clapperboard, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { api } from '../api'
 import { useStore } from '../store'
+import ThemeToggle from '../components/ThemeToggle'
 
 const STAGES: { key: string; label: string }[] = [
   { key: 'fetching',        label: 'Fetching comments'        },
@@ -45,6 +46,11 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
+      {/* Theme toggle — top-right */}
+      <div className="fixed top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="animate-fade-up mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Clapperboard size={18} className="text-amber" />
