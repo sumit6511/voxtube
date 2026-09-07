@@ -49,6 +49,22 @@ const TOOLTIP_STYLE = {
   borderRadius: '8px', fontSize: '12px', fontFamily: 'IBM Plex Mono',
 }
 
+// Every label is "<month> <day-or-year>" ("Jan 5" / "Jan '26") — split on the
+// space so month and day/year each get their own line instead of cramming
+// both onto one, which is what made the monthly "Jan '26" style labels hard
+// to read at a glance.
+function TimelineTick({ x, y, payload }: any) {
+  const [line1, line2] = payload.value.split(' ')
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fill="#6B7280" fontSize={11} fontFamily="IBM Plex Mono">
+        <tspan x={0} dy={12}>{line1}</tspan>
+        {line2 && <tspan x={0} dy={13}>{line2}</tspan>}
+      </text>
+    </g>
+  )
+}
+
 export default function SentimentTimeline({ comments }: Props) {
   const mounted = useMountedAfterTick()
   const { points, granularity, withDates } = useMemo(() => buildTimeline(comments), [comments])
@@ -71,8 +87,8 @@ export default function SentimentTimeline({ comments }: Props) {
         {periodLabel} · {points.length} periods · {withDates} comments
       </p>
       {mounted && (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={232}>
+          <AreaChart data={points} margin={{ top: 4, right: 8, left: -22, bottom: 12 }}>
             <defs>
               <linearGradient id="posGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
@@ -88,7 +104,7 @@ export default function SentimentTimeline({ comments }: Props) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#6B7280', fontSize: 11, fontFamily: 'IBM Plex Mono' }}
+            <XAxis dataKey="label" tick={<TimelineTick />}
               axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: '#2D3446' }} />
@@ -105,7 +121,7 @@ export default function SentimentTimeline({ comments }: Props) {
           </AreaChart>
         </ResponsiveContainer>
       )}
-      {!mounted && <div style={{ height: 220 }} />}
+      {!mounted && <div style={{ height: 232 }} />}
     </div>
   )
 }
